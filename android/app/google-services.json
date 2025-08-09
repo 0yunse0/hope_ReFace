@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "981936821405",
+    "project_id": "reface-4e1b9",
+    "storage_bucket": "reface-4e1b9.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:981936821405:android:7f0b262f0917a9b1223074",
+        "android_client_info": {
+          "package_name": "com.example.test_auth_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAIf9C4rSIRM6U1Uz-sYeK0SYI2JaHcLvE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
