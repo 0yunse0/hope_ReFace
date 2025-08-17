@@ -1,11 +1,7 @@
-// login_page.dart
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'home_page.dart';
 import 'auth_service.dart';
-import 'initial_expressions_page.dart';
-
-const String FUNCTIONS_BASE = '';
+import 'signup_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -60,37 +56,6 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  Future<void> _handleSignUp() async {
-    try {
-      final email = emailController.text.trim();
-      final pw = passwordController.text;
-      if (email.isEmpty || pw.isEmpty) {
-        _showSnack('이메일과 비밀번호를 입력하세요.');
-        return;
-      }
-
-      final cred = await FirebaseAuth.instance
-          .createUserWithEmailAndPassword(email: email, password: pw);
-
-      // (선택) 이메일 인증 메일 보내기
-      // await cred.user?.sendEmailVerification();
-
-      if (!mounted) return;
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => InitialExpressionsPage(
-            functionsBase: FUNCTIONS_BASE,              // ✅ 배포 URL
-          ),
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('회원가입 실패: $e')),
-      );
-    }
-  }
-
   Future<void> _handleResetPw() async {
     final email = emailController.text.trim();
     if (email.isEmpty) {
@@ -114,7 +79,7 @@ class _LoginPageState extends State<LoginPage> {
     final inputBorder = OutlineInputBorder(borderRadius: BorderRadius.circular(8));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Login / Sign Up')),
+      appBar: AppBar(title: const Text('로그인')),
       body: AbsorbPointer(
         absorbing: _loading,
         child: Stack(
@@ -153,7 +118,12 @@ class _LoginPageState extends State<LoginPage> {
                   width: double.infinity,
                   height: 48,
                   child: OutlinedButton(
-                    onPressed: _handleSignUp,
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const SignUpPage()),
+                      );
+                    },
                     child: const Text('회원가입'),
                   ),
                 ),
@@ -163,8 +133,7 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ]),
             ),
-            if (_loading)
-              const Center(child: CircularProgressIndicator()),
+            if (_loading) const Center(child: CircularProgressIndicator()),
           ],
         ),
       ),

@@ -4,7 +4,7 @@ const { validateLandmarks, EXPRESSIONS } = require('../utils/validator');
 
 const bad = (res, code, msg)=> res.status(code).json({ error: msg });
 
-// 회원가입 직후: 표정 4종 × 8좌표 "내 얼굴 초기값" 저장 (전역 baseline 아님)
+// 회원가입 직후: 표정 4종 × 8좌표 "내 얼굴 초기값" 저장
 exports.saveInitialExpressions = async (req, res) => {
   try {
     const { expressions } = req.body || {};

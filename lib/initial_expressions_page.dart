@@ -2,9 +2,10 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
+import 'home_page.dart';
 
 class InitialExpressionsPage extends StatefulWidget {
-  final String functionsBase; // e.g., "https://asia-northeast3-<project-id>.cloudfunctions.net"
+  final String functionsBase;
   const InitialExpressionsPage({super.key, required this.functionsBase});
 
   @override
@@ -69,15 +70,34 @@ class _InitialExpressionsPageState extends State<InitialExpressionsPage>
         body: jsonEncode(payload),
       );
 
+      if (!mounted) return;
+
       if (resp.statusCode == 200) {
-        setState(() => _result = '✅ 저장 성공!');
+        final body = jsonDecode(resp.body);
+        final ok = body is Map && body['ok'] == true;
+
+        if (ok) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('저장 성공!')),
+          );
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => const HomePage()),
+            (_) => false,
+          );
+          return;
+        } else {
+          setState(() => _result = '실패: 서버 응답에 ok=false');
+        }
       } else {
-        setState(() => _result = '❌ 실패: ${resp.statusCode} ${resp.body}');
+        setState(() => _result = '실패: ${resp.statusCode} ${resp.body}');
       }
     } catch (e) {
-      setState(() => _result = '❌ 에러: $e');
+      if (!mounted) return;
+      setState(() => _result = '에러: $e');
     } finally {
-      setState(() => _loading = false);
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     }
   }
 
@@ -141,7 +161,7 @@ class _ExpressionFormState {
       x[k] = TextEditingController();
       y[k] = TextEditingController();
     }
-    // 기본값(임시) 넣어둬서 바로 테스트 가능
+    // 예시 저장
     x['bottomMouth']!.text = '209'; y['bottomMouth']!.text = '518';
     x['rightMouth']!.text  = '248'; y['rightMouth']!.text  = '508';
     x['leftMouth']!.text   = '182'; y['leftMouth']!.text   = '507';
