@@ -1,7 +1,11 @@
 // login_page.dart
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'home_page.dart';
 import 'auth_service.dart';
+import 'initial_expressions_page.dart';
+
+const String FUNCTIONS_BASE = '';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -57,21 +61,33 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _handleSignUp() async {
-    final email = emailController.text.trim();
-    final pw = passwordController.text.trim();
-    if (email.isEmpty || pw.isEmpty) {
-      _showSnack('이메일과 비밀번호를 입력하세요.');
-      return;
-    }
-
-    setState(() => _loading = true);
     try {
-      await authService.signUp(email, pw);
-      _showSnack('회원가입 성공! 이메일 인증 링크를 확인하세요.');
-    } on Exception catch (e) {
-      _showSnack(e.toString().replaceFirst('Exception: ', ''));
-    } finally {
-      if (mounted) setState(() => _loading = false);
+      final email = emailController.text.trim();
+      final pw = passwordController.text;
+      if (email.isEmpty || pw.isEmpty) {
+        _showSnack('이메일과 비밀번호를 입력하세요.');
+        return;
+      }
+
+      final cred = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(email: email, password: pw);
+
+      // (선택) 이메일 인증 메일 보내기
+      // await cred.user?.sendEmailVerification();
+
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => InitialExpressionsPage(
+            functionsBase: FUNCTIONS_BASE,              // ✅ 배포 URL
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('회원가입 실패: $e')),
+      );
     }
   }
 
@@ -148,9 +164,7 @@ class _LoginPageState extends State<LoginPage> {
               ]),
             ),
             if (_loading)
-              const Center(
-                child: CircularProgressIndicator(),
-              ),
+              const Center(child: CircularProgressIndicator()),
           ],
         ),
       ),
