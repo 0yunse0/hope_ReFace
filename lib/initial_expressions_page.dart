@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'home_page.dart';
+import '../../env.dart';
 
 class InitialExpressionsPage extends StatefulWidget {
   final String functionsBase;
@@ -229,8 +230,4 @@ class _ExpressionForm extends StatelessWidget {
       ),
     );
   }
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> origin/main

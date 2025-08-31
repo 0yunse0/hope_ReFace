@@ -1,37 +1,21 @@
 {
   "project_info": {
-<<<<<<< HEAD
     "project_number": "981404499659",
     "project_id": "hope-reface",
     "storage_bucket": "hope-reface.firebasestorage.app"
-=======
-    "project_number": "981936821405",
-    "project_id": "reface-4e1b9",
-    "storage_bucket": "reface-4e1b9.firebasestorage.app"
->>>>>>> origin/main
   },
   "client": [
     {
       "client_info": {
-<<<<<<< HEAD
         "mobilesdk_app_id": "1:981404499659:android:7b77a181377990c7c0654e",
         "android_client_info": {
           "package_name": "com.example.reface"
-=======
-        "mobilesdk_app_id": "1:981936821405:android:7f0b262f0917a9b1223074",
-        "android_client_info": {
-          "package_name": "com.example.test_auth_app"
->>>>>>> origin/main
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-<<<<<<< HEAD
-          "current_key": "AIzaSyDhf8149vZAprzO_F3GWaiNSo3b19ZmUsY"
-=======
           "current_key": "AIzaSyAIf9C4rSIRM6U1Uz-sYeK0SYI2JaHcLvE"
->>>>>>> origin/main
         }
       ],
       "services": {

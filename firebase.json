@@ -1,6 +1,40 @@
-<<<<<<< HEAD
-{"functions":[{"source":"functions","codebase":"default","ignore":["node_modules",".git","firebase-debug.log","firebase-debug.*.log","*.local"],"predeploy":["npm --prefix \"$RESOURCE_DIR\" run lint"]}],"flutter":{"platforms":{"android":{"default":{"projectId":"hope-reface","appId":"1:981404499659:android:7b77a181377990c7c0654e","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"hope-reface","configurations":{"android":"1:981404499659:android:7b77a181377990c7c0654e","web":"1:981404499659:web:196d057bfd0b5890c0654e"}}}}}}
-=======
-{"functions":[{"source":"functions","codebase":"default","ignore":["node_modules",".git","firebase-debug.log","firebase-debug.*.log","*.local"],"predeploy":[
-]}],"web":{},"flutter":{"platforms":{"android":{"default":{"projectId":"reface-4e1b9","appId":"1:981936821405:android:7f0b262f0917a9b1223074","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"reface-4e1b9","configurations":{"android":"1:981936821405:android:7f0b262f0917a9b1223074","ios":"1:981936821405:ios:b86686ce46ea58ab223074","macos":"1:981936821405:ios:b86686ce46ea58ab223074","web":"1:981936821405:web:a730165b6e49681c223074","windows":"1:981936821405:web:cfb1f03d09e0b303223074"}}}}}}
->>>>>>> origin/main
+{
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "ignore": ["node_modules", ".git", "firebase-debug.log", "firebase-debug.*.log", "*.local"],
+      "predeploy": ["npm --prefix \"$RESOURCE_DIR\" run lint"]
+    }
+  ],
+  "hosting": {
+    "public": "build/web",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "rewrites": [
+      {
+        "source": "/api/**",
+        "function": { "functionId": "api", "region": "asia-northeast3" }
+      }
+    ]
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "hope-reface",
+          "appId": "1:981404499659:android:7b77a181377990c7c0654e",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "hope-reface",
+          "configurations": {
+            "android": "1:981404499659:android:7b77a181377990c7c0654e",
+            "web": "1:981404499659:web:196d057bfd0b5890c0654e"
+          }
+        }
+      }
+    }
+  }
+}

@@ -4,17 +4,11 @@ project(runner LANGUAGES CXX)
 
 # The name of the executable created for the application. Change this to change
 # the on-disk name of your application.
-<<<<<<< HEAD
 set(BINARY_NAME "reface")
 # The unique GTK application identifier for this application. See:
 # https://wiki.gnome.org/HowDoI/ChooseApplicationID
 set(APPLICATION_ID "com.example.reface")
-=======
-set(BINARY_NAME "test_auth_app")
-# The unique GTK application identifier for this application. See:
-# https://wiki.gnome.org/HowDoI/ChooseApplicationID
-set(APPLICATION_ID "com.example.test_auth_app")
->>>>>>> origin/main
+
 
 # Explicitly opt in to modern CMake behaviors to avoid warnings with recent
 # versions of CMake.

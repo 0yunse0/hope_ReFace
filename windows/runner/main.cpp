@@ -27,11 +27,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   FlutterWindow window(project);
   Win32Window::Point origin(10, 10);
   Win32Window::Size size(1280, 720);
-<<<<<<< HEAD
-  if (!window.Create(L"reface", origin, size)) {
-=======
   if (!window.Create(L"test_auth_app", origin, size)) {
->>>>>>> origin/main
     return EXIT_FAILURE;
   }
   window.SetQuitOnClose(true);

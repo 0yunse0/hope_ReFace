@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'home_page.dart';
 import 'auth_service.dart';
 import 'signup_page.dart';
+import 'features/training/manual_capture_page.dart'; // 로그인 성공 후 이동할 페이지
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -44,10 +44,11 @@ class _LoginPageState extends State<LoginPage> {
         await authService.signOut();
         return;
       }
+
+      // 로그인 성공 직후: 수동 좌표 저장 페이지로 이동
       if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const HomePage()),
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const ManualCapturePage()),
       );
     } on Exception catch (e) {
       _showSnack(e.toString().replaceFirst('Exception: ', ''));
@@ -86,52 +87,54 @@ class _LoginPageState extends State<LoginPage> {
           children: [
             Padding(
               padding: const EdgeInsets.all(20.0),
-              child: Column(children: [
-                TextField(
-                  controller: emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: InputDecoration(
-                    labelText: 'Email',
-                    border: inputBorder,
+              child: Column(
+                children: [
+                  TextField(
+                    controller: emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: InputDecoration(
+                      labelText: 'Email',
+                      border: inputBorder,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: passwordController,
-                  obscureText: true,
-                  decoration: InputDecoration(
-                    labelText: 'Password',
-                    border: inputBorder,
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: passwordController,
+                    obscureText: true,
+                    decoration: InputDecoration(
+                      labelText: 'Password',
+                      border: inputBorder,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: ElevatedButton(
-                    onPressed: _handleLogin,
-                    child: const Text('로그인'),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed: _handleLogin,
+                      child: const Text('로그인'),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 10),
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: OutlinedButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const SignUpPage()),
-                      );
-                    },
-                    child: const Text('회원가입'),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: OutlinedButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const SignUpPage()),
+                        );
+                      },
+                      child: const Text('회원가입'),
+                    ),
                   ),
-                ),
-                TextButton(
-                  onPressed: _handleResetPw,
-                  child: const Text('비밀번호 재설정'),
-                ),
-              ]),
+                  TextButton(
+                    onPressed: _handleResetPw,
+                    child: const Text('비밀번호 재설정'),
+                  ),
+                ],
+              ),
             ),
             if (_loading) const Center(child: CircularProgressIndicator()),
           ],
@@ -139,8 +142,7 @@ class _LoginPageState extends State<LoginPage> {
       ),
     );
   }
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> origin/main
+
+
+////나중에 ManualCapturePage()대신 HomePage()로 가면됨/////
