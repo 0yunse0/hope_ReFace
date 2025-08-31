@@ -23,6 +23,7 @@ class DefaultFirebaseOptions {
       case TargetPlatform.android:
         return android;
       case TargetPlatform.iOS:
+<<<<<<< HEAD
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for ios - '
           'you can reconfigure this by running the FlutterFire CLI again.',
@@ -37,6 +38,13 @@ class DefaultFirebaseOptions {
           'DefaultFirebaseOptions have not been configured for windows - '
           'you can reconfigure this by running the FlutterFire CLI again.',
         );
+=======
+        return ios;
+      case TargetPlatform.macOS:
+        return macos;
+      case TargetPlatform.windows:
+        return windows;
+>>>>>>> origin/main
       case TargetPlatform.linux:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for linux - '
@@ -50,6 +58,7 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
+<<<<<<< HEAD
     apiKey: 'AIzaSyBdXSC_fhn6Ymi4IZmm95k5vCjjiTwyzhg',
     appId: '1:981404499659:web:196d057bfd0b5890c0654e',
     messagingSenderId: '981404499659',
@@ -65,5 +74,48 @@ class DefaultFirebaseOptions {
     messagingSenderId: '981404499659',
     projectId: 'hope-reface',
     storageBucket: 'hope-reface.firebasestorage.app',
+=======
+    apiKey: 'AIzaSyDDaq-qPIcDShmJd-PA3plkp8IaLjMP1po',
+    appId: '1:981936821405:web:a730165b6e49681c223074',
+    messagingSenderId: '981936821405',
+    projectId: 'reface-4e1b9',
+    authDomain: 'reface-4e1b9.firebaseapp.com',
+    storageBucket: 'reface-4e1b9.firebasestorage.app',
+  );
+
+  static const FirebaseOptions android = FirebaseOptions(
+    apiKey: 'AIzaSyAIf9C4rSIRM6U1Uz-sYeK0SYI2JaHcLvE',
+    appId: '1:981936821405:android:7f0b262f0917a9b1223074',
+    messagingSenderId: '981936821405',
+    projectId: 'reface-4e1b9',
+    storageBucket: 'reface-4e1b9.firebasestorage.app',
+  );
+
+  static const FirebaseOptions ios = FirebaseOptions(
+    apiKey: 'AIzaSyCgusj0yt-MF1fd5nK_hITdXPSHXipcl6E',
+    appId: '1:981936821405:ios:b86686ce46ea58ab223074',
+    messagingSenderId: '981936821405',
+    projectId: 'reface-4e1b9',
+    storageBucket: 'reface-4e1b9.firebasestorage.app',
+    iosBundleId: 'com.example.testAuthApp',
+  );
+
+  static const FirebaseOptions macos = FirebaseOptions(
+    apiKey: 'AIzaSyCgusj0yt-MF1fd5nK_hITdXPSHXipcl6E',
+    appId: '1:981936821405:ios:b86686ce46ea58ab223074',
+    messagingSenderId: '981936821405',
+    projectId: 'reface-4e1b9',
+    storageBucket: 'reface-4e1b9.firebasestorage.app',
+    iosBundleId: 'com.example.testAuthApp',
+  );
+
+  static const FirebaseOptions windows = FirebaseOptions(
+    apiKey: 'AIzaSyDDaq-qPIcDShmJd-PA3plkp8IaLjMP1po',
+    appId: '1:981936821405:web:cfb1f03d09e0b303223074',
+    messagingSenderId: '981936821405',
+    projectId: 'reface-4e1b9',
+    authDomain: 'reface-4e1b9.firebaseapp.com',
+    storageBucket: 'reface-4e1b9.firebasestorage.app',
+>>>>>>> origin/main
   );
 }
