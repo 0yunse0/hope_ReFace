@@ -1,6 +1,6 @@
 const KEYS = [
-  'bottomMouth','rightMouth','leftMouth',
-  'leftEye','rightEye','rightCheek','leftCheek','noseBase'
+  'bottomMouth', 'rightMouth', 'leftMouth',
+  'leftEye', 'rightEye', 'rightCheek', 'leftCheek', 'noseBase'
 ];
 
 exports.validateLandmarks = (landmarks) => {
@@ -14,4 +14,4 @@ exports.validateLandmarks = (landmarks) => {
   return null;
 };
 
-exports.EXPRESSIONS = new Set(['smile','angry','sad','neutral']);
+exports.EXPRESSIONS = new Set(['smile', 'angry', 'sad', 'neutral']);
