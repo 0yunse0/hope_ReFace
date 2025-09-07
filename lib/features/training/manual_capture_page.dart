@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:reface/auth_service.dart';
+import 'package:reface/services/auth_service.dart';
 import 'send_capture_from_log.dart';
 import 'package:reface/env.dart';
 
 
 const String kDefaultApiBase = apiBase;
-
 
 class ManualCapturePage extends StatefulWidget {
   const ManualCapturePage({super.key});

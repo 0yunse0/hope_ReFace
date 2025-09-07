@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'auth_service.dart';
+import 'services/auth_service.dart'; 
 import 'signup_page.dart';
 import 'features/training/manual_capture_page.dart'; // 로그인 성공 후 이동할 페이지
 

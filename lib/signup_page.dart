@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'auth_service.dart';
+import 'services/auth_service.dart';
 import 'initial_expressions_page.dart';
 
 const String FUNCTIONS_BASE = '';
