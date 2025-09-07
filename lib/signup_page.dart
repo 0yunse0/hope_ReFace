@@ -81,7 +81,7 @@ class _SignUpPageState extends State<SignUpPage> {
 
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => InitialExpressionsPage(functionsBase: FUNCTIONS_BASE)),
+        MaterialPageRoute(builder: (_) => const InitialExpressionsPage()),
         (_) => false,
       );
     } catch (e) {

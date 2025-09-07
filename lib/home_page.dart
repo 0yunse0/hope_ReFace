@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'services/auth_service.dart';
 import 'login_page.dart';
-import 'services/firestore_service.dart'; 
+import 'services/firestore_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class HomePage extends StatefulWidget {
@@ -23,9 +23,9 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _addSample() async {
-    // 점수 예시로 50~100 랜덤 저장
     final score = 50 + (DateTime.now().millisecond % 51);
     await _fs.addSampleSession(score: score);
+    if (!mounted) return;
     ScaffoldMessenger.of(context)
         .showSnackBar(const SnackBar(content: Text('세션 저장됨')));
   }
@@ -94,9 +94,7 @@ class _HomePageState extends State<HomePage> {
                       setLocal(() => loading = true);
                       try {
                         final uid = FirebaseAuth.instance.currentUser!.uid;
-                        // 1) Firestore 데이터 삭제
                         await _fs.deleteAllUserData(uid);
-                        // 2) Auth 계정 삭제(재인증)
                         await _auth.deleteAccount(controller.text.trim());
                         if (!mounted) return;
                         Navigator.of(context).pushAndRemoveUntil(

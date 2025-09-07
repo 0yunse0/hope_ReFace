@@ -1,2 +1,3 @@
-// lib/env.dart
-const String apiBase = 'https://us-central1-hope-reface.cloudfunctions.net/api';
+class Env {
+  static const baseUrl = 'https://us-central1-hope-reface.cloudfunctions.net/api';
+}

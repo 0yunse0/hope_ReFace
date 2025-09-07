@@ -1,16 +1,10 @@
 // index.js
 'use strict';
 
-/**
- * 테스트용 플래그 (필요 시 0으로 꺼두기)
- * 배포 전 반드시 제거하거나 0으로 변경!
- */
-process.env.ENABLE_TEST_BYPASS = process.env.ENABLE_TEST_BYPASS ?? '1'; //이거 지우라고 했던거임
-
 // .env 로드(있으면)
 try {
   require('dotenv').config();
-} catch { /* env 파일이 없어도 무시 */ }
+} catch {/* env 파일이 없어도 무시 */}
 
 // Firebase Admin 초기화 (필요 시)
 const { initializeApp: initAdmin, getApps } = require('firebase-admin/app');

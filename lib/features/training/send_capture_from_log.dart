@@ -2,7 +2,7 @@
 import 'landmark_parser.dart';
 import 'landmark_payload.dart';
 import 'training_api.dart';
-
+import 'package:reface/core/network/api_client.dart';
 /// 카운트다운이 끝난 "그 순간의 로그 텍스트"를 넘기면,
 /// 파싱 → API 전송까지 한 번에 수행합니다.
 ///
@@ -35,6 +35,7 @@ Future<void> sendCaptureFromLog({
   );
 
   // 3) 전송
-  final api = TrainingApi(baseUrl: baseUrl, authToken: authToken);
-  await api.sendCapture(payload);
+  final client = ApiClient(baseUrl: baseUrl, authToken: authToken);
+  final api = TrainingApi(client);
+  await api.sendCapture(payload.toJson());
 }

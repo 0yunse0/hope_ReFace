@@ -3,11 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'home_page.dart';
-import '../../env.dart';
+import 'env.dart';
 
 class InitialExpressionsPage extends StatefulWidget {
-  final String functionsBase;
-  const InitialExpressionsPage({super.key, required this.functionsBase});
+  const InitialExpressionsPage({super.key});
 
   @override
   State<InitialExpressionsPage> createState() => _InitialExpressionsPageState();
@@ -61,7 +60,7 @@ class _InitialExpressionsPageState extends State<InitialExpressionsPage>
         }
       };
 
-      final url = Uri.parse('${widget.functionsBase}/expressions/initial');
+       final url = Uri.parse('${Env.baseUrl}/expressions/initial');
       final resp = await http.post(
         url,
         headers: {
@@ -162,7 +161,7 @@ class _ExpressionFormState {
       x[k] = TextEditingController();
       y[k] = TextEditingController();
     }
-    // 예시 저장
+    // 예시 기본값
     x['bottomMouth']!.text = '209'; y['bottomMouth']!.text = '518';
     x['rightMouth']!.text  = '248'; y['rightMouth']!.text  = '508';
     x['leftMouth']!.text   = '182'; y['leftMouth']!.text   = '507';

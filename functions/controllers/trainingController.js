@@ -58,22 +58,28 @@ function pickLastFrame(frames) {
   return last || (Array.isArray(frames) ? frames[frames.length - 1] : null);
 }
 
-// dataURL(base64) 이미지를 GCS에 저장(선택)
+// dataURL(base64) 이미지를 GCS에 저장하고 공개 URL 반환
 async function saveImageBase64ToBucket(uid, sid, setId, dataUrl) {
   if (!dataUrl || typeof dataUrl !== "string") return null;
   const m = dataUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
   if (!m) return null;
+
   const contentType = m[1];
   const base64Data = m[2];
   const buffer = Buffer.from(base64Data, "base64");
-  const bucket = admin.storage().bucket(); // 기본 버킷
+
+  const bucket = admin.storage().bucket(); // 기본 버킷 (reface-4e1b9.firebasestorage.app)
   const filePath = `users/${uid}/trainingSessions/${sid}/sets/${setId}/lastFrame.jpg`;
   const file = bucket.file(filePath);
+
   await file.save(buffer, {
     resumable: false,
     metadata: { contentType, cacheControl: "public,max-age=31536000" },
   });
-  return `gs://${bucket.name}/${filePath}`; // 필요하면 makePublic() 또는 Signed URL로 변경 가능
+
+  // 👇 공개 처리 후 HTTPS 공개 URL 반환
+  await file.makePublic();
+  return `https://storage.googleapis.com/${bucket.name}/${filePath}`;
 }
 
 // ------ controllers ------

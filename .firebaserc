@@ -2,7 +2,8 @@
   "projects": {
     "default": "exam-4d2e6",
     "dev": "reface-4e1b9",
-    "reface": "reface-4e1b9"
+    "reface": "reface-4e1b9",
+    "hope": "hope-reface"
   },
   "targets": {},
   "etags": {}
