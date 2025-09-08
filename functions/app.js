@@ -32,8 +32,8 @@ app.post('/expressions/initial', authGuard, async (req, res) => {
 
     const requiredExpr = ['smile', 'angry', 'sad', 'neutral'];
     const points = [
-      'bottomMouth','rightMouth','leftMouth',
-      'leftEye','rightEye','rightCheek','leftCheek','noseBase'
+      'bottomMouth', 'rightMouth', 'leftMouth',
+      'leftEye', 'rightEye', 'rightCheek', 'leftCheek', 'noseBase'
     ];
 
     for (const e of requiredExpr) {

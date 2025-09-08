@@ -5,6 +5,10 @@ import 'login_page.dart';
 import 'services/firestore_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+// ▼ 추가: 훈련 데모/기록 페이지 임포트
+import 'features/training/training_flow_demo_page.dart';
+import 'features/training/training_records_page.dart';
+
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -23,11 +27,13 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _addSample() async {
+    // 점수 예시로 50~100 랜덤 저장 (기존 FirestoreService 샘플)
     final score = 50 + (DateTime.now().millisecond % 51);
     await _fs.addSampleSession(score: score);
-    if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(const SnackBar(content: Text('세션 저장됨')));
+    if (mounted) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('세션 저장됨')));
+    }
   }
 
   Future<void> _signOut() async {
@@ -94,7 +100,9 @@ class _HomePageState extends State<HomePage> {
                       setLocal(() => loading = true);
                       try {
                         final uid = FirebaseAuth.instance.currentUser!.uid;
+                        // 1) Firestore 데이터 삭제
                         await _fs.deleteAllUserData(uid);
+                        // 2) Auth 계정 삭제(재인증)
                         await _auth.deleteAccount(controller.text.trim());
                         if (!mounted) return;
                         Navigator.of(context).pushAndRemoveUntil(
@@ -115,6 +123,18 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  void _openTrainingDemo() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const TrainingFlowDemoPage()),
+    );
+  }
+
+  void _openTrainingRecords() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const TrainingRecordsPage()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
@@ -123,7 +143,7 @@ class _HomePageState extends State<HomePage> {
         title: const Text('Home'),
         actions: [
           IconButton(
-            tooltip: '세션 저장',
+            tooltip: '세션 저장(샘플)',
             icon: const Icon(Icons.save),
             onPressed: _addSample,
           ),
@@ -141,32 +161,67 @@ class _HomePageState extends State<HomePage> {
       ),
       body: uid.isEmpty
           ? const Center(child: Text('로그인 정보 없음'))
-          : StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: _fs.sessionsStream(),
-              builder: (context, snap) {
-                if (snap.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                final docs = snap.data?.docs ?? [];
-                if (docs.isEmpty) {
-                  return const Center(child: Text('세션이 없습니다. 상단 저장 아이콘을 눌러보세요.'));
-                }
-                return ListView.separated(
-                  itemCount: docs.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
-                  itemBuilder: (context, i) {
-                    final d = docs[i].data();
-                    final score = d['score'];
-                    final ts = d['createdAt'];
-                    final when = ts is Timestamp ? ts.toDate() : null;
-                    return ListTile(
-                      leading: const Icon(Icons.insert_chart_outlined),
-                      title: Text('score: $score'),
-                      subtitle: Text(when?.toString() ?? ''),
-                    );
-                  },
-                );
-              },
+          : Column(
+              children: [
+                // ▼ 상단: 훈련모드/훈련기록 진입 버튼 2개
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: FilledButton.icon(
+                          onPressed: _openTrainingDemo,
+                          icon: const Icon(Icons.play_circle_fill),
+                          label: const Text('훈련 모드(데모)'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _openTrainingRecords,
+                          icon: const Icon(Icons.library_books),
+                          label: const Text('훈련 기록 보기'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Divider(height: 1),
+
+                // ▼ 하단: 기존 Firestore 샘플 스트림(원하면 유지/삭제 선택)
+                Expanded(
+                  child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                    stream: _fs.sessionsStream(),
+                    builder: (context, snap) {
+                      if (snap.connectionState == ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      final docs = snap.data?.docs ?? [];
+                      if (docs.isEmpty) {
+                        return const Center(
+                          child: Text('세션이 없습니다. 상단의 "훈련 모드(데모)"를 눌러 테스트해보세요.'),
+                        );
+                      }
+                      return ListView.separated(
+                        itemCount: docs.length,
+                        separatorBuilder: (_, __) => const Divider(height: 1),
+                        itemBuilder: (context, i) {
+                          final d = docs[i].data();
+                          final score = d['score'];
+                          final ts = d['createdAt'];
+                          final when = ts is Timestamp ? ts.toDate() : null;
+                          return ListTile(
+                            leading: const Icon(Icons.insert_chart_outlined),
+                            title: Text('score: $score'),
+                            subtitle: Text(when?.toString() ?? ''),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
             ),
     );
   }
