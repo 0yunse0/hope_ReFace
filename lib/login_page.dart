@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'services/auth_service.dart'; 
 import 'signup_page.dart';
-import 'features/training/manual_capture_page.dart'; // 로그인 성공 후 이동할 페이지
+import 'home_page.dart'; // 상단에 추가
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -47,9 +47,9 @@ class _LoginPageState extends State<LoginPage> {
 
       // 로그인 성공 직후: 수동 좌표 저장 페이지로 이동
       if (!mounted) return;
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const ManualCapturePage()),
-      );
+     Navigator.of(context).pushReplacement(
+  MaterialPageRoute(builder: (_) => const HomePage()),
+);
     } on Exception catch (e) {
       _showSnack(e.toString().replaceFirst('Exception: ', ''));
     } finally {
