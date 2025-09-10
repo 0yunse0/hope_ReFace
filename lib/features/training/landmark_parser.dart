@@ -1,10 +1,6 @@
 import 'dart:core';
 
-/// 로그 텍스트(여러 줄)에서 얼굴 랜드마크 좌표만 뽑아냅니다.
-/// 예시 라인:
-/// I/flutter (...): LM FaceLandmarkType.leftEye: raw=(213.0, 346.0) screen=(182.4, 183.5)
-///
-/// 반환: List<ParsedLandmark>
+/// 로그 텍스트(여러 줄)에서 얼굴 랜드마크 좌표만 파싱
 List<ParsedLandmark> parseLandmarksFromLog(String logText) {
   final reg = RegExp(
     r'LM\s+FaceLandmarkType\.(\w+):\s*raw=\(([-\d.]+),\s*([-\d.]+)\)\s*screen=\(([-\d.]+),\s*([-\d.]+)\)',
@@ -35,7 +31,7 @@ List<ParsedLandmark> parseLandmarksFromLog(String logText) {
 }
 
 class ParsedLandmark {
-  final String type; // ex) leftEye
+  final String type;
   final double rawX;
   final double rawY;
   final double screenX;

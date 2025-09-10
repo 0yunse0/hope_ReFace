@@ -1,4 +1,3 @@
-// lib/features/training/landmark_payload.dart
 import 'landmark_parser.dart';
 
 /// 백엔드에 보낼 캡처 페이로드

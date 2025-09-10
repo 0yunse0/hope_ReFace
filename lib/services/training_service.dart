@@ -1,4 +1,3 @@
-// lib/services/training_service.dart
 import 'package:dio/dio.dart';
 import '../core/api_client.dart';
 

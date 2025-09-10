@@ -1,4 +1,3 @@
-// lib/features/training/training_records_page.dart
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:reface/core/network/api_client.dart';

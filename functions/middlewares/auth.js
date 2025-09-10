@@ -1,4 +1,3 @@
-// functions/middlewares/auth.js
 const { admin } = require('../firebase');
 
 /**

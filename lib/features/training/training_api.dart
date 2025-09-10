@@ -1,4 +1,3 @@
-// lib/features/training/training_api.dart
 import 'dart:convert';
 import 'dart:math';
 import 'package:http/http.dart' as http;
@@ -17,7 +16,7 @@ class TrainingApi {
     return j['sid'] as String;
   }
 
-  /// frames: 15개, 각 원소: { ts:int, current:{ "48":{x,y}, "54":{x,y}, ... }, imageBase64? }
+  /// frames: 15개
   Future<Map<String, dynamic>> saveSet({
     required String sid,
     required Map<String, dynamic> baseline,

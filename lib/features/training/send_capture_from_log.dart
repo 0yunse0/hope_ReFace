@@ -9,7 +9,7 @@ import 'package:reface/core/network/api_client.dart';
 /// [uid]            : 현재 로그인한 사용자 ID(외부에서 주입)
 /// [sessionId]      : 세션 식별자 (ex: 오늘 훈련 세션 ID)
 /// [logText]        : I/flutter ... 형식의 여러 줄 로그 원문
-/// [baseUrl]        : API 베이스 URL (ex: https://api.example.com)
+/// [baseUrl]        : API 베이스 URL
 /// [authToken]      : 필요 시 Authorization Bearer 토큰
 Future<void> sendCaptureFromLog({
   required String uid,

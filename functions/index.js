@@ -1,4 +1,3 @@
-// index.js
 'use strict';
 
 // .env 로드(있으면)
@@ -21,9 +20,6 @@ const app = require('./app');
 
 /**
  * Cloud Functions 엔드포인트
- * - region: us-central1
- * - cors: true (필요 시 특정 도메인 배열로 제한 가능)
- * - timeout/memory는 프로젝트 성격에 맞게 조정
  */
 exports.api = onRequest(
   {
@@ -41,8 +37,7 @@ exports.api = onRequest(
 
 /**
  * 로컬 단독 실행(선택): `node index.js`
- * - 에뮬레이터가 아니라 Express만 띄워 빠르게 테스트하고 싶을 때 사용
- * - firebase emulators:start 를 쓰면 아래 블록은 실행되지 않음
+ * - 에뮬레이터가 아니라 Express만 띄워 빠르게 테스트하고 싶을 때 사용하면 됨!!
  */
 if (require.main === module) {
   const PORT = process.env.PORT || 3000;

@@ -8,7 +8,7 @@ function pickOr(arr, idx, fallback) {
     fallback;
 }
 
-// 좌표 배열 평균: [{x,y,z?}, ...] -> { x̄, ȳ, z̄? }
+// 좌표 배열 평균
 function avgPoints(points) {
   let sx = 0; let sy = 0; let sz = 0; let c = 0; let hasZ = false;
   for (const p of points) {
@@ -58,7 +58,7 @@ function pickLastFrame(frames) {
   return last || (Array.isArray(frames) ? frames[frames.length - 1] : null);
 }
 
-// dataURL(base64) 이미지를 GCS에 저장하고 공개 URL 반환
+// dataURL(base64) 이미지를 GCS에 저장& 공개 URL 반환
 async function saveImageBase64ToBucket(uid, sid, setId, dataUrl) {
   if (!dataUrl || typeof dataUrl !== "string") return null;
   const m = dataUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
@@ -82,11 +82,10 @@ async function saveImageBase64ToBucket(uid, sid, setId, dataUrl) {
   return `https://storage.googleapis.com/${bucket.name}/${filePath}`;
 }
 
-// ------ controllers ------
+
 
 /**
- * 진행도 계산(단일 샷)
- * body: { baseline, reference, current, weights? }
+ * 진행도 계산
  */
 async function calcProgress(req, res) {
   try {
@@ -120,7 +119,6 @@ async function calcProgress(req, res) {
 
 /**
  * 세션 시작
- * body: { expr }
  */
 async function startSession(req, res) {
   try {
@@ -141,11 +139,6 @@ async function startSession(req, res) {
 
 /**
  * 세트 저장 (15초 동안 1fps로 받은 frames 평균 + 마지막 프레임 사진 기록)
- * body: {
- *   baseline, reference,
- *   frames: [{ current: {...}, ts: 0..14, imageBase64? }, ...], // 15개 권장
- *   weights?
- * }
  */
 async function saveSet(req, res) {
   try {
@@ -161,7 +154,6 @@ async function saveSet(req, res) {
       return res.status(400).json({ error: "frames must be a non-empty array" });
     }
     if (frames.length < 15) {
-      // 정확히 15개를 요구한다면 400, 유연하게 가려면 경고만 띄우고 진행해도 됨
       return res.status(400).json({ error: "need 15 frames (1 fps for 15s)" });
     }
 
@@ -224,7 +216,7 @@ async function saveSet(req, res) {
 
 /**
  * 세션 완료: 세트 점수 평균을 finalScore로 기록(그 날 값)
- * body: { summary? }  // finalScore는 서버가 세트 평균으로 계산
+ * finalScore는 서버가 세트 평균으로 계산
  */
 async function finalizeSession(req, res) {
   try {

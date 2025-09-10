@@ -1,4 +1,3 @@
-// functions/app.js
 const express = require('express');
 const cors = require('cors');
 const admin = require('firebase-admin');

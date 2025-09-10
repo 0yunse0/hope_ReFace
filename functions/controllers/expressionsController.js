@@ -5,14 +5,7 @@ const bad = (res, code, msg) => res.status(code).json({ error: msg });
 
 /**
  * 회원가입 직후: 표정 4종 × 8좌표 "내 얼굴 초기값" 저장
- * - ALL-or-Nothing: 유효하지 않은 expr/랜드마크가 하나라도 있으면 전체 저장 취소(400)
- * body: {
- *   expressions: {
- *     smile: { "48": {x,y,z?,visibility?}, "54": {...}, ... },
- *     neutral: {...},
- *     ...
- *   }
- * }
+ * 유효하지 않은 expr/랜드마크가 하나라도 있으면 전체 저장 취소(400)
  */
 exports.saveInitialExpressions = async (req, res) => {
   try {

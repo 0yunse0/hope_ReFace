@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'services/auth_service.dart'; 
 import 'signup_page.dart';
-import 'home_page.dart'; // 상단에 추가
+import 'home_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
