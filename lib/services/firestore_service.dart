@@ -44,13 +44,12 @@ class FirestoreService {
     await _deleteAllStorage(uid);
   }
 
-
   Future<void> _deleteAllFirestore(String uid) async {
     final userRef = _db.collection('users').doc(uid);
 
-    // 1) 서브컬렉션(sessions 등) 안전 삭제 (비어 있어도 문제 없게)
+    // 1) 서브컬렉션(sessions 등) 안전 삭제
     Future<void> _deleteCollection(CollectionReference<Map<String, dynamic>> col) async {
-      const int batchSize = 300; // 500 제한보다 낮게
+      const int batchSize = 300;
       Query<Map<String, dynamic>> query = col.limit(batchSize);
 
       while (true) {
@@ -62,7 +61,7 @@ class FirestoreService {
           batch.delete(doc.reference);
         }
         await batch.commit();
-        if (snap.docs.length < batchSize) break; // 더 없음
+        if (snap.docs.length < batchSize) break;
       }
     }
 
@@ -73,23 +72,22 @@ class FirestoreService {
       // 컬렉션이 없거나 권한 문제 시에도 탈퇴는 계속 진행
     }
 
-    // 2) 최상위 user 문서 삭제 (없어도 그냥 통과)
+    // 2) 최상위 user 문서 삭제
     try {
       await userRef.delete();
     } on FirebaseException catch (e) {
       if (e.code != 'not-found' && e.code != 'permission-denied') {
-        rethrow; // 정말 이상한 경우만 올림
+        rethrow;
       }
     } catch (_) {/* 무시 */}
   }
 
   Future<void> _deleteAllStorage(String uid) async {
-    // 예: users/{uid}/ 이하 모든 파일 삭제, 폴더가 없어도 그냥 통과
     final base = _storage.ref().child('users/$uid');
 
     Future<void> _deleteFolder(Reference folder) async {
       try {
-        final listing = await folder.listAll(); // 폴더 없으면 아래 catch로 떨어질 수 있음
+        final listing = await folder.listAll();
         for (final item in listing.items) {
           try {
             await item.delete();
@@ -98,15 +96,62 @@ class FirestoreService {
         for (final prefix in listing.prefixes) {
           await _deleteFolder(prefix);
         }
-        // 마지막에 폴더 자체는 삭제 개념이 없으니 패스
       } on FirebaseException catch (e) {
-        // 경로가 아예 없으면 object-not-found 발생 가능 → 그냥 무시
         if (e.code != 'object-not-found') {
-          // 다른 에러는 상황 봐서 처리, 여기선 통과
+          // ignore others
         }
       } catch (_) {/* 무시 */}
     }
 
     await _deleteFolder(base);
+  }
+
+  // ====== ⬇️ 추가: 초기 표정 저장/조회/스트림 ======
+
+  /// 초기 표정 노트 저장 (users/{uid}/meta/initial_expressions)
+  Future<void> setInitialExpressions({
+    required Map<String, String> notes,
+  }) async {
+    await ensureUserDoc();
+    final ref = _db
+        .collection('users')
+        .doc(_uid)
+        .collection('meta')
+        .doc('initial_expressions');
+
+    await ref.set({
+      'notes': notes,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  /// 초기 표정 노트 단건 조회
+  Future<Map<String, String>> getInitialExpressions() async {
+    final doc = await _db
+        .collection('users')
+        .doc(_uid)
+        .collection('meta')
+        .doc('initial_expressions')
+        .get();
+    if (!doc.exists) return {};
+    final data = (doc.data() ?? {}) as Map<String, dynamic>;
+    final notes = (data['notes'] ?? {}) as Map<String, dynamic>;
+    return notes.map((k, v) => MapEntry(k, (v ?? '').toString()));
+  }
+
+  /// 초기 표정 노트 스트림
+  Stream<Map<String, String>> initialExpressionsStream() {
+    return _db
+        .collection('users')
+        .doc(_uid)
+        .collection('meta')
+        .doc('initial_expressions')
+        .snapshots()
+        .map((snap) {
+      if (!snap.exists) return <String, String>{};
+      final data = (snap.data() ?? {}) as Map<String, dynamic>;
+      final notes = (data['notes'] ?? {}) as Map<String, dynamic>;
+      return notes.map((k, v) => MapEntry(k, (v ?? '').toString()));
+    });
   }
 }

@@ -4,6 +4,7 @@ import 'services/auth_service.dart';
 import 'login_page.dart';
 import 'services/firestore_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'features/constants.dart';
 
 // ▼ 추가: 훈련 데모/기록 페이지 임포트
 import 'features/training/training_flow_demo_page.dart';
@@ -11,218 +12,123 @@ import 'features/training/training_records_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
-
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
-  final _auth = AuthService();
-  final _fs = FirestoreService();
+  bool _busy = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _fs.ensureUserDoc(); // 최초 입장 시 사용자 문서 보장
-  }
-
-  Future<void> _addSample() async {
-    // 점수 예시로 50~100 랜덤 저장 (기존 FirestoreService 샘플)
-    final score = 50 + (DateTime.now().millisecond % 51);
-    await _fs.addSampleSession(score: score);
-    if (mounted) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('세션 저장됨')));
+  Future<void> _signOut() async {
+    setState(() => _busy = true);
+    try {
+      await AuthService().signOut();
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginPage()),
+        (_) => false,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('로그아웃 실패: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
   }
 
-  Future<void> _signOut() async {
-    await _auth.signOut();
-    if (!mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const LoginPage()),
-      (route) => false,
-    );
-  }
-
-  Future<void> _deleteAccountFlow() async {
-    final controller = TextEditingController();
-    final key = GlobalKey<FormState>();
-    bool loading = false;
-    String? err;
-
-    await showDialog(
-      context: context,
-      barrierDismissible: !loading,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setLocal) => AlertDialog(
-          title: const Text('회원 탈퇴'),
-          content: Form(
-            key: key,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
+  @override
+  Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    final theme = Theme.of(context);
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('홈'),
+        actions: [
+          IconButton(icon: const Icon(Icons.logout), onPressed: _busy ? null : _signOut),
+        ],
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(AppSizes.md),
+        child: ListView(
+          children: [
+            Card(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
+              child: ListTile(
+                leading: const Icon(Icons.person),
+                title: Text(user?.email ?? '게스트'),
+                subtitle: const Text('환영합니다!'),
+              ),
+            ),
+            const SizedBox(height: AppSizes.md),
+            Wrap(
+              spacing: AppSizes.md,
+              runSpacing: AppSizes.md,
               children: [
-                const Text('비밀번호를 재입력하세요. 모든 데이터가 삭제됩니다.'),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: controller,
-                  obscureText: true,
-                  decoration: const InputDecoration(
-                    labelText: '비밀번호',
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (v) =>
-                      (v == null || v.isEmpty) ? '비밀번호를 입력하세요' : null,
+                _ActionCard(
+                  icon: Icons.play_circle_fill,
+                  label: '훈련 시작',
+                  onTap: () => Navigator.of(context).pushNamed('/training'),
                 ),
-                if (err != null) ...[
-                  const SizedBox(height: 8),
-                  Text(err!, style: const TextStyle(color: Colors.red)),
-                ]
+                _ActionCard(
+                  icon: Icons.history,
+                  label: '훈련 기록',
+                  onTap: () => Navigator.of(context).pushNamed('/training/logs'),
+                ),
+                _ActionCard(
+                  icon: Icons.bar_chart,
+                  label: '통계 보기',
+                  onTap: () => Navigator.of(context).pushNamed('/stats'),
+                ),
               ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: loading ? null : () => Navigator.pop(context),
-              child: const Text('취소'),
-            ),
-            ElevatedButton.icon(
-              icon: loading
-                  ? const SizedBox(
-                      width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Icon(Icons.delete_forever),
-              label: const Text('탈퇴'),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              onPressed: loading
-                  ? null
-                  : () async {
-                      if (!key.currentState!.validate()) return;
-                      setLocal(() => loading = true);
-                      try {
-                        final uid = FirebaseAuth.instance.currentUser!.uid;
-                        // 1) Firestore 데이터 삭제
-                        await _fs.deleteAllUserData(uid);
-                        // 2) Auth 계정 삭제(재인증)
-                        await _auth.deleteAccount(controller.text.trim());
-                        if (!mounted) return;
-                        Navigator.of(context).pushAndRemoveUntil(
-                          MaterialPageRoute(builder: (_) => const LoginPage()),
-                          (route) => false,
-                        );
-                      } catch (e) {
-                        setLocal(() {
-                          loading = false;
-                          err = e.toString();
-                        });
-                      }
-                    },
             ),
           ],
         ),
       ),
     );
   }
+}
 
-  void _openTrainingDemo() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const TrainingFlowDemoPage()),
-    );
-  }
-
-  void _openTrainingRecords() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const TrainingRecordsPage()),
-    );
-  }
-
+class _ActionCard extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  const _ActionCard({required this.icon, required this.label, required this.onTap});
   @override
   Widget build(BuildContext context) {
-    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Home'),
-        actions: [
-          IconButton(
-            tooltip: '세션 저장(샘플)',
-            icon: const Icon(Icons.save),
-            onPressed: _addSample,
+    final theme = Theme.of(context);
+    return SizedBox(
+      width: 180,
+      height: 110,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        child: Ink(
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            boxShadow: [
+              BoxShadow(
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+                color: Colors.black.withOpacity(0.06),
+              )
+            ],
           ),
-          IconButton(
-            tooltip: '로그아웃',
-            icon: const Icon(Icons.logout),
-            onPressed: _signOut,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 32, color: theme.colorScheme.primary),
+              const SizedBox(height: AppSizes.sm),
+              Text(
+                label,
+                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+              ),
+            ],
           ),
-          IconButton(
-            tooltip: '회원 탈퇴',
-            icon: const Icon(Icons.delete_forever),
-            onPressed: _deleteAccountFlow,
-          ),
-        ],
+        ),
       ),
-      body: uid.isEmpty
-          ? const Center(child: Text('로그인 정보 없음'))
-          : Column(
-              children: [
-                // ▼ 상단: 훈련모드/훈련기록 진입 버튼 2개
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: FilledButton.icon(
-                          onPressed: _openTrainingDemo,
-                          icon: const Icon(Icons.play_circle_fill),
-                          label: const Text('훈련 모드(데모)'),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: _openTrainingRecords,
-                          icon: const Icon(Icons.library_books),
-                          label: const Text('훈련 기록 보기'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 8),
-                const Divider(height: 1),
-
-                // ▼ 하단: 기존 Firestore 샘플 스트림(원하면 유지/삭제 선택)
-                Expanded(
-                  child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                    stream: _fs.sessionsStream(),
-                    builder: (context, snap) {
-                      if (snap.connectionState == ConnectionState.waiting) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
-                      final docs = snap.data?.docs ?? [];
-                      if (docs.isEmpty) {
-                        return const Center(
-                          child: Text('세션이 없습니다. 상단의 "훈련 모드(데모)"를 눌러 테스트해보세요.'),
-                        );
-                      }
-                      return ListView.separated(
-                        itemCount: docs.length,
-                        separatorBuilder: (_, __) => const Divider(height: 1),
-                        itemBuilder: (context, i) {
-                          final d = docs[i].data();
-                          final score = d['score'];
-                          final ts = d['createdAt'];
-                          final when = ts is Timestamp ? ts.toDate() : null;
-                          return ListTile(
-                            leading: const Icon(Icons.insert_chart_outlined),
-                            title: Text('score: $score'),
-                            subtitle: Text(when?.toString() ?? ''),
-                          );
-                        },
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
     );
   }
 }

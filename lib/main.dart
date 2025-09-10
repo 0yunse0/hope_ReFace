@@ -7,6 +7,7 @@ import 'firebase_options.dart';
 import 'login_page.dart';
 import 'home_page.dart';
 import 'signup_page.dart';
+import 'features/constants.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -35,6 +36,14 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'ReFace',
       debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: AppColors.primary,     // constants.dart의 대표색
+          brightness: Brightness.light,
+        ),
+        scaffoldBackgroundColor: AppColors.background, // 배경색
+        useMaterial3: true,
+      ),
       routes: {
         '/login': (_) => const LoginPage(),
         '/home': (_) => const HomePage(),

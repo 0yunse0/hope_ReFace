@@ -1,158 +1,184 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'services/auth_service.dart';
 import 'initial_expressions_page.dart';
-
-const String FUNCTIONS_BASE = '';
+import 'features/constants.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
+
   @override
   State<SignUpPage> createState() => _SignUpPageState();
 }
 
 class _SignUpPageState extends State<SignUpPage> {
+  final _formKey = GlobalKey<FormState>();
+
+  final _name = TextEditingController();
   final _email = TextEditingController();
-  final _pw = TextEditingController();
-  final _pw2 = TextEditingController();
+  final _password = TextEditingController();
 
-  bool _sending = false;
-  bool _verificationMailSent = false; // 인증 메일 발송 여부(회원가입 버튼 활성화 기준)
+  bool _loading = false;
+  bool _sent = false;
+  String? _error;
 
-  bool get _emailValid =>
-      RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(_email.text.trim());
-  bool get _pwValid =>
-      RegExp(r'^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$')
-          .hasMatch(_pw.text);
-  bool get _pwMatch => _pw.text == _pw2.text;
+  @override
+  void dispose() {
+    _name.dispose();
+    _email.dispose();
+    _password.dispose();
+    super.dispose();
+  }
 
-  Future<void> _checkDuplicateAndSendVerification() async {
-    final email = _email.text.trim();
-    if (!_emailValid) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('이메일 형식을 확인해 주세요.')));
-      return;
-    }
-    if (!_pwValid || !_pwMatch) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('비밀번호 규칙/재확인을 확인해 주세요. (영문/숫자/특수문자 포함 8자 이상)')));
-      return;
-    }
+  Future<void> _onSignUp() async {
+    if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _sending = true);
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
     try {
-      final ok = await AuthService().isEmailAvailable(email);
-      if (!ok) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('이미 사용 중인 이메일입니다.')));
-        return;
-      }
-
-      // 계정 생성 + 인증 메일 발송 (화면 유지)
       await AuthService().createUserAndSendVerification(
-        email: email,
-        password: _pw.text,
+        email: _email.text.trim(),
+        password: _password.text.trim(),
       );
-      setState(() => _verificationMailSent = true);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('인증 메일을 보냈습니다. 메일함에서 인증을 완료해 주세요.')));
 
-    } catch (e) {
+      if (!mounted) return;
+      setState(() => _sent = true);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('중복 확인/인증메일 발송 실패: $e')),
+        const SnackBar(content: Text('인증 메일을 전송했습니다. 메일함을 확인하세요.')),
       );
+    } on FirebaseAuthException catch (e) {
+      setState(() => _error = e.message ?? '회원가입 실패');
+    } catch (e) {
+      setState(() => _error = '에러: $e');
     } finally {
-      if (mounted) setState(() => _sending = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 
-  Future<void> _completeSignUp() async {
-    // 회원가입 버튼: 인증 완료되었는지 확인
-    setState(() => _sending = true);
+  Future<void> _onCompleteVerification() async {
+    setState(() => _loading = true);
     try {
       final verified = await AuthService().reloadAndCheckVerified();
-      if (!verified) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('아직 이메일 인증 전입니다. 인증 후 다시 눌러 주세요.')));
-        return;
-      }
-
-      // 인증 완료되면 초기표정 화면으로 이동
-      await AuthService().finalizeAfterVerified();
-
       if (!mounted) return;
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const InitialExpressionsPage()),
-        (_) => false,
-      );
+
+      if (verified) {
+        await AuthService().finalizeAfterVerified(); // 필요시 후처리
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const InitialExpressionsPage()),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('아직 이메일 인증 전입니다. 메일함을 다시 확인해 주세요.')),
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('회원가입 완료 처리 실패: $e')),
-      );
+      if (!mounted) return;
+      setState(() => _error = '에러: $e');
     } finally {
-      if (mounted) setState(() => _sending = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final canSendVerify = !_sending; // 중복확인은 즉시 가능(내부에서 유효성 체크)
-    final canFinishSignUp =
-        _verificationMailSent && !_sending; // 메일 발송 후에만 활성화
+    final theme = Theme.of(context);
 
     return Scaffold(
+      backgroundColor: theme.colorScheme.surface,
       appBar: AppBar(title: const Text('회원가입')),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            const SizedBox(height: 8),
-            TextField(
-              controller: _email,
-              keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(labelText: '이메일'),
-              onChanged: (_) => setState((){}),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                ElevatedButton(
-                  onPressed: canSendVerify ? _checkDuplicateAndSendVerification : null,
-                  child: _sending
-                      ? const SizedBox(
-                          height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Text('중복 확인(인증메일 발송)'),
-                ),
-                const SizedBox(width: 8),
-                if (_verificationMailSent)
-                  const Text('인증 메일 발송됨', style: TextStyle(color: Colors.green)),
-              ],
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _pw,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: '비밀번호 (영문/숫자/특수문자 8자 이상)',
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 520),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Card(
+                    elevation: 0,
+                    color: theme.colorScheme.surface,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          children: [
+                            TextFormField(
+                              controller: _name,
+                              decoration: const InputDecoration(
+                                labelText: '이름',
+                                border: OutlineInputBorder(),
+                              ),
+                              validator: (v) =>
+                                  (v == null || v.trim().isEmpty) ? '이름을 입력하세요' : null,
+                            ),
+                            const SizedBox(height: 12),
+                            TextFormField(
+                              controller: _email,
+                              keyboardType: TextInputType.emailAddress,
+                              decoration: const InputDecoration(
+                                labelText: '이메일',
+                                border: OutlineInputBorder(),
+                              ),
+                              validator: (v) {
+                                if (v == null || v.isEmpty) return '이메일을 입력하세요';
+                                if (!v.contains('@')) return '이메일 형식이 올바르지 않습니다';
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 12),
+                            TextFormField(
+                              controller: _password,
+                              obscureText: true,
+                              decoration: const InputDecoration(
+                                labelText: '비밀번호',
+                                border: OutlineInputBorder(),
+                              ),
+                              validator: (v) =>
+                                  (v == null || v.length < 6) ? '6자 이상 입력하세요' : null,
+                            ),
+                            if (_error != null) ...[
+                              const SizedBox(height: 8),
+                              Text(_error!, style: const TextStyle(color: AppColors.error)),
+                            ],
+                            const SizedBox(height: 16),
+                            SizedBox(
+                              width: double.infinity,
+                              height: 48,
+                              child: ElevatedButton(
+                                onPressed: _loading ? null : _onSignUp,
+                                child: _loading
+                                    ? const CircularProgressIndicator()
+                                    : const Text('회원가입'),
+                              ),
+                            ),
+                            if (_sent) ...[
+                              const SizedBox(height: 8),
+                              SizedBox(
+                                width: double.infinity,
+                                height: 48,
+                                child: OutlinedButton(
+                                  onPressed: _loading ? null : _onCompleteVerification,
+                                  child: const Text('인증 완료했어요'),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              onChanged: (_) => setState((){}),
             ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _pw2,
-              obscureText: true,
-              decoration: const InputDecoration(labelText: '비밀번호 재확인'),
-              onChanged: (_) => setState((){}),
-            ),
-            const Spacer(),
-            SizedBox(
-              width: double.infinity,
-              height: 56,
-              child: FilledButton(
-                onPressed: canFinishSignUp ? _completeSignUp : null,
-                child: const Text('회원가입'),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
