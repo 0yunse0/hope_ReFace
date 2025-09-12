@@ -83,7 +83,6 @@ async function saveImageBase64ToBucket(uid, sid, setId, dataUrl) {
 }
 
 
-
 /**
  * 진행도 계산
  */
