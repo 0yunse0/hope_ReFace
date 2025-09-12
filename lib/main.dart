@@ -11,19 +11,22 @@ import 'signup_page.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 1) .env 로드 (없어도 앱이 실행되도록 try/catch)
+  // (선택) .env 사용 중이면 유지
   try {
     await dotenv.load(fileName: '.env');
-  } catch (_) {
-    // .env가 없으면 무시 (개발 초기에 편의)
+  } catch (_) {}
+
+  // Firebase는 한 번만 초기화
+  try {
+    if (Firebase.apps.isEmpty) {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+    }
+  } on FirebaseException catch (e) {
+    if (e.code != 'duplicate-app') rethrow;
   }
 
-  // 2) Firebase 초기화
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-
-  // 3) 앱 실행
   runApp(const MyApp());
 }
 
@@ -40,7 +43,7 @@ class MyApp extends StatelessWidget {
         '/home': (_) => const HomePage(),
         '/signup': (_) => const SignUpPage(),
       },
-      home: const LoginPage(), // 시작 화면 = 로그인
+      home: const LoginPage(),
     );
   }
 }
