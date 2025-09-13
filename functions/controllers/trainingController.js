@@ -1,20 +1,27 @@
-const { admin, db } = require("../firebase");
-const { landmarkProgress, aggregateProgress, symmetry } = require("../utils/landmarkMetrics");
+// functions/controllers/trainingController.js
+'use strict';
 
-// 배열 idx 안전 접근
+const admin = require('firebase-admin');
+const db = admin.firestore();
+const {
+  landmarkProgress,
+  aggregateProgress,
+  symmetry
+} = require('../utils/landmarkMetrics');
+
+// -------------------- 유틸 --------------------
 function pickOr(arr, idx, fallback) {
-  return (Array.isArray(arr) && idx >= 0 && idx < arr.length && typeof arr[idx] === "number") ?
+  return (Array.isArray(arr) && idx >= 0 && idx < arr.length && typeof arr[idx] === 'number') ?
     arr[idx] :
     fallback;
 }
 
-// 좌표 배열 평균
 function avgPoints(points) {
   let sx = 0; let sy = 0; let sz = 0; let c = 0; let hasZ = false;
   for (const p of points) {
-    if (p && typeof p.x === "number" && typeof p.y === "number") {
+    if (p && typeof p.x === 'number' && typeof p.y === 'number') {
       sx += p.x; sy += p.y; c++;
-      if (typeof p.z === "number") {
+      if (typeof p.z === 'number') {
         sz += p.z; hasZ = true;
       }
     }
@@ -25,12 +32,11 @@ function avgPoints(points) {
   return out;
 }
 
-// frames[*].current 들로 랜드마크별 평균 current 구성
 function averageCurrentFromFrames(frames) {
-  const bucket = {}; // { "48": [pt, pt, ...], ... }
+  const bucket = {};
   for (const f of frames) {
     const cur = f && f.current;
-    if (!cur || typeof cur !== "object") continue;
+    if (!cur || typeof cur !== 'object') continue;
     for (const id of Object.keys(cur)) {
       if (!bucket[id]) bucket[id] = [];
       bucket[id].push(cur[id]);
@@ -44,48 +50,42 @@ function averageCurrentFromFrames(frames) {
   return avgCurrent;
 }
 
-// 마지막 프레임(가장 큰 ts, 없으면 배열 마지막)
 function pickLastFrame(frames) {
   let last = null;
   for (const f of frames) {
     if (!last) last = f;
     else {
-      const t1 = (last && typeof last.ts === "number") ? last.ts : -Infinity;
-      const t2 = (f && typeof f.ts === "number") ? f.ts : -Infinity;
+      const t1 = (last && typeof last.ts === 'number') ? last.ts : -Infinity;
+      const t2 = (f && typeof f.ts === 'number') ? f.ts : -Infinity;
       if (t2 >= t1) last = f;
     }
   }
   return last || (Array.isArray(frames) ? frames[frames.length - 1] : null);
 }
 
-// dataURL(base64) 이미지를 GCS에 저장& 공개 URL 반환
 async function saveImageBase64ToBucket(uid, sid, setId, dataUrl) {
-  if (!dataUrl || typeof dataUrl !== "string") return null;
+  if (!dataUrl || typeof dataUrl !== 'string') return null;
   const m = dataUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
   if (!m) return null;
 
   const contentType = m[1];
   const base64Data = m[2];
-  const buffer = Buffer.from(base64Data, "base64");
+  const buffer = Buffer.from(base64Data, 'base64');
 
-  const bucket = admin.storage().bucket(); // 기본 버킷 (reface-4e1b9.firebasestorage.app)
+  const bucket = admin.storage().bucket();
   const filePath = `users/${uid}/trainingSessions/${sid}/sets/${setId}/lastFrame.jpg`;
   const file = bucket.file(filePath);
 
   await file.save(buffer, {
     resumable: false,
-    metadata: { contentType, cacheControl: "public,max-age=31536000" },
+    metadata: { contentType, cacheControl: 'public,max-age=31536000' },
   });
 
-  // 👇 공개 처리 후 HTTPS 공개 URL 반환
   await file.makePublic();
   return `https://storage.googleapis.com/${bucket.name}/${filePath}`;
 }
 
-
-/**
- * 진행도 계산
- */
+// -------------------- 컨트롤러 --------------------
 async function calcProgress(req, res) {
   try {
     const body = req.body || {};
@@ -102,8 +102,8 @@ async function calcProgress(req, res) {
     );
     const setScore = aggregateProgress(scores, weights);
 
-    const li = ids.indexOf("48");
-    const ri = ids.indexOf("54");
+    const li = ids.indexOf('48');
+    const ri = ids.indexOf('54');
     const sym = symmetry(
       pickOr(scores, li, setScore),
       pickOr(scores, ri, setScore)
@@ -112,36 +112,34 @@ async function calcProgress(req, res) {
     return res.json({ progress: setScore * 100, symmetry: sym, raw: scores });
   } catch (e) {
     console.error(e);
-    return res.status(500).json({ error: "progress calc failed" });
+    return res.status(500).json({ error: 'progress calc failed' });
   }
 }
 
-/**
- * 세션 시작
- */
 async function startSession(req, res) {
   try {
-    const uid = req.uid; // 통일
+    const uid = req.uid || req.user?.uid;
+    if (!uid) return res.status(401).json({ error: 'unauthorized' });
+
     const expr = (req.body && req.body.expr) || null;
-    const ref = db.collection("users").doc(uid).collection("trainingSessions").doc();
+    const ref = db.collection('users').doc(uid).collection('trainingSessions').doc();
     await ref.set({
       expr,
-      status: "active",
+      status: 'active',
       startedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
     return res.json({ sid: ref.id });
   } catch (e) {
     console.error(e);
-    return res.status(500).json({ error: "session start failed" });
+    return res.status(500).json({ error: 'session start failed' });
   }
 }
 
-/**
- * 세트 저장 (15초 동안 1fps로 받은 frames 평균 + 마지막 프레임 사진 기록)
- */
 async function saveSet(req, res) {
   try {
-    const uid = req.uid; // 통일
+    const uid = req.uid || req.user?.uid;
+    if (!uid) return res.status(401).json({ error: 'unauthorized' });
+
     const sid = req.params.sid;
     const body = req.body || {};
     const baseline = body.baseline || {};
@@ -150,16 +148,14 @@ async function saveSet(req, res) {
     const weights = body.weights;
 
     if (frames.length < 1) {
-      return res.status(400).json({ error: "frames must be a non-empty array" });
+      return res.status(400).json({ error: 'frames must be a non-empty array' });
     }
     if (frames.length < 15) {
-      return res.status(400).json({ error: "need 15 frames (1 fps for 15s)" });
+      return res.status(400).json({ error: 'need 15 frames (1 fps for 15s)' });
     }
 
-    // 평균 current 생성
     const avgCurrent = averageCurrentFromFrames(frames);
 
-    // 스코어 계산(평균 좌표 vs baseline/reference)
     const ids = Object.keys(avgCurrent);
     const eps = 1e-3;
     const scores = ids.map((id) =>
@@ -167,20 +163,17 @@ async function saveSet(req, res) {
     );
     const setScore = aggregateProgress(scores, weights);
 
-    // 대칭(입꼬리 48/54)
-    const li = ids.indexOf("48");
-    const ri = ids.indexOf("54");
+    const li = ids.indexOf('48');
+    const ri = ids.indexOf('54');
     const sym = symmetry(
       pickOr(scores, li, setScore),
       pickOr(scores, ri, setScore)
     );
 
-    // 세트 문서 id를 먼저 확보
-    const setsRef = db.collection("users").doc(uid)
-      .collection("trainingSessions").doc(sid)
-      .collection("sets").doc();
+    const setsRef = db.collection('users').doc(uid)
+      .collection('trainingSessions').doc(sid)
+      .collection('sets').doc();
 
-    // 마지막 프레임 이미지 저장(있으면)
     const last = pickLastFrame(frames);
     let lastFrameImage = null;
     try {
@@ -188,7 +181,7 @@ async function saveSet(req, res) {
         lastFrameImage = await saveImageBase64ToBucket(uid, sid, setsRef.id, last.imageBase64);
       }
     } catch (imgErr) {
-      console.warn("[saveSet] image save failed:", imgErr && imgErr.message ? imgErr.message : imgErr);
+      console.warn('[saveSet] image save failed:', imgErr?.message || imgErr);
     }
 
     await setsRef.set({
@@ -196,7 +189,7 @@ async function saveSet(req, res) {
       score: setScore * 100,
       symmetry: sym,
       framesCount: frames.length,
-      lastFrameImage: lastFrameImage,
+      lastFrameImage,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
@@ -209,81 +202,156 @@ async function saveSet(req, res) {
     });
   } catch (e) {
     console.error(e);
-    return res.status(500).json({ error: "set save failed" });
+    return res.status(500).json({ error: 'set save failed' });
   }
 }
 
-/**
- * 세션 완료: 세트 점수 평균을 finalScore로 기록(그 날 값)
- * finalScore는 서버가 세트 평균으로 계산
- */
 async function finalizeSession(req, res) {
   try {
-    const uid = req.uid; // 통일
+    const uid = req.uid || req.user?.uid;
+    if (!uid) return res.status(401).json({ error: 'unauthorized' });
+
     const sid = req.params.sid;
+    const ref = db.collection('users').doc(uid).collection('trainingSessions').doc(sid);
 
-    const ref = db.collection("users").doc(uid).collection("trainingSessions").doc(sid);
-
-    // 세트 점수 평균 계산
-    const setsSnap = await ref.collection("sets").get();
+    const setsSnap = await ref.collection('sets').get();
     const scores = [];
     setsSnap.forEach((d) => {
-      const sc = d.data() && typeof d.data().score === "number" ? d.data().score : null;
-      if (typeof sc === "number") scores.push(sc);
+      const sc = (d.data() && typeof d.data().score === 'number') ? d.data().score : null;
+      if (typeof sc === 'number') scores.push(sc);
     });
     const dayScore = scores.length ? (scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
 
-    const summary = (req.body && Object.prototype.hasOwnProperty.call(req.body, "summary")) ?
-      req.body.summary : null;
+    const summary = (req.body && Object.prototype.hasOwnProperty.call(req.body, 'summary')) ?
+      req.body.summary :
+      null;
 
     await ref.set({
-      finalScore: dayScore, // 3세트 평균(세트 수가 달라도 평균)
+      finalScore: dayScore,
       summary,
-      status: "completed",
+      status: 'completed',
       completedAt: admin.firestore.FieldValue.serverTimestamp(),
     }, { merge: true });
 
     return res.json({ ok: true, finalScore: dayScore, setsCount: scores.length });
   } catch (e) {
     console.error(e);
-    return res.status(500).json({ error: "session finalize failed" });
+    return res.status(500).json({ error: 'session finalize failed' });
   }
 }
 
 async function listSessions(req, res) {
   try {
-    const uid = req.uid; // 통일
-    const snap = await db.collection("users").doc(uid)
-      .collection("trainingSessions")
-      .orderBy("startedAt", "desc")
+    const uid = req.uid || req.user?.uid;
+    if (!uid) return res.status(401).json({ error: 'unauthorized' });
+
+    const snap = await db.collection('users').doc(uid)
+      .collection('trainingSessions')
+      .orderBy('startedAt', 'desc')
       .limit(50)
       .get();
 
-    return res.json({ sessions: snap.docs.map((d) => ({ id: d.id, ...d.data() })) });
+    return res.json({
+      sessions: snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+    });
   } catch (e) {
     console.error(e);
-    return res.status(500).json({ error: "list sessions failed" });
+    return res.status(500).json({ error: 'list sessions failed' });
   }
 }
 
 async function getSession(req, res) {
   try {
-    const uid = req.uid; // 통일
-    const sid = req.params.sid;
-    const ref = db.collection("users").doc(uid).collection("trainingSessions").doc(sid);
-    const doc = await ref.get();
-    if (!doc.exists) return res.status(404).json({ error: "not found" });
+    const uid = req.uid || req.user?.uid;
+    if (!uid) return res.status(401).json({ error: 'unauthorized' });
 
-    const setsSnap = await ref.collection("sets").orderBy("createdAt").get();
+    const sid = req.params.sid;
+    const ref = db.collection('users').doc(uid).collection('trainingSessions').doc(sid);
+    const doc = await ref.get();
+    if (!doc.exists) return res.status(404).json({ error: 'not found' });
+
+    const setsSnap = await ref.collection('sets').orderBy('createdAt').get();
     const sets = setsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
     return res.json({ session: { id: doc.id, ...doc.data(), sets } });
   } catch (e) {
     console.error(e);
-    return res.status(500).json({ error: "get session failed" });
+    return res.status(500).json({ error: 'get session failed' });
   }
 }
 
+// -------------------- 추천 (진척도 낮은 순) --------------------
+async function getRecommendations(req, res) {
+  try {
+    const uid = req.uid || req.user?.uid;
+    if (!uid) return res.status(401).json({ error: 'unauthorized' });
+
+    const raw = parseInt(req.query.limit, 10);
+    const limit = isNaN(raw) ? 3 : Math.min(10, Math.max(1, raw));
+
+    const exprs = ['neutral', 'smile', 'angry', 'sad'];
+    const candidates = [];
+
+    for (const expr of exprs) {
+      const snap = await db
+        .collection('users').doc(uid)
+        .collection('trainingSessions')
+        .where('expr', '==', expr)
+        .where('status', '==', 'completed')
+        .orderBy('completedAt', 'desc')
+        .limit(50)
+        .get();
+
+      if (snap.empty) {
+        candidates.push({
+          expr,
+          avgScore: null,
+          sessionsCount: 0,
+          lastSessionAt: null,
+        });
+        continue;
+      }
+
+      let sum = 0; let cnt = 0; let last = null;
+      snap.forEach((doc) => {
+        const d = doc.data();
+        const sc = (typeof d.finalScore === 'number') ? d.finalScore : null;
+        if (sc != null) {
+          sum += sc; cnt += 1;
+        }
+        const ts = d.completedAt?.toDate?.() ?? (d.completedAt ? new Date(d.completedAt) : null);
+        if (!last || (ts && ts > last)) last = ts;
+      });
+
+      const avg = cnt > 0 ? +(sum / cnt).toFixed(2) : null;
+      candidates.push({
+        expr,
+        avgScore: avg,
+        sessionsCount: cnt,
+        lastSessionAt: last ? last.toISOString() : null,
+      });
+    }
+
+    const sorted = candidates.slice().sort((a, b) => {
+      const av = a.avgScore == null ? 0 : a.avgScore;
+      const bv = b.avgScore == null ? 0 : b.avgScore;
+      return av - bv;
+    });
+
+    const recommendedExpr = (sorted[0]?.expr) || 'neutral';
+
+    return res.json({
+      recommendedExpr,
+      reason: '최근 평균 진척도가 가장 낮음',
+      candidates: sorted.slice(0, limit),
+    });
+  } catch (err) {
+    console.error('getRecommendations error', err);
+    return res.status(500).json({ error: 'server_error' });
+  }
+}
+
+// -------------------- exports --------------------
 module.exports = {
   calcProgress,
   startSession,
@@ -291,4 +359,5 @@ module.exports = {
   finalizeSession,
   listSessions,
   getSession,
+  getRecommendations, // ★ 추가
 };
