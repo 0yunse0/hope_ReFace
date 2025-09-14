@@ -98,7 +98,7 @@ class _TrainingFlowDemoPageState extends State<TrainingFlowDemoPage> {
   Future<void> _fetchRecommendation({int limit = 3}) async {
     setState(() => _recBusy = true);
     try {
-      final res = await _raw.get('/training/recommendations?limit=$limit');
+      final res = await _raw.get('/training/recommendations');
       if (res.statusCode != 200) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('추천 불러오기 실패: ${res.statusCode} ${res.body}')),
@@ -347,3 +347,233 @@ class _TrainingFlowDemoPageState extends State<TrainingFlowDemoPage> {
     );
   }
 }
+
+
+
+
+
+
+////////////////진척도 기반 추천 테스트용///////////////훈련페이지 들어가면 추천만 뜨게
+// import 'dart:convert';
+// import 'package:flutter/material.dart';
+// import 'package:reface/core/network/api_client.dart';
+
+// /// 추천 API 확인 전용 페이지
+// /// - 페이지 진입 즉시 추천을 요청해서 결과(expr, progress)만 보여줌
+// /// - 캐시 방지를 위해 매 요청마다 ts 파라미터를 붙임
+// class TrainingFlowDemoPage extends StatefulWidget {
+//   const TrainingFlowDemoPage({super.key});
+
+//   @override
+//   State<TrainingFlowDemoPage> createState() => _TrainingFlowDemoPageState();
+// }
+
+// class _TrainingFlowDemoPageState extends State<TrainingFlowDemoPage> {
+//   final _api = ApiClient();
+
+//   bool _loading = false;
+//   String? _expr;        // 추천된 표정 (neutral/smile/angry/sad)
+//   num? _progress;       // 추천 표정의 최근 평균 진척도(0~100)
+//   String? _errorText;   // 에러 메시지(있으면 화면에 표시)
+
+//   @override
+//   void initState() {
+//     super.initState();
+//     _fetchRecommendation(); // 들어오자마자 호출
+//   }
+
+//   Future<void> _fetchRecommendation() async {
+//     setState(() {
+//       _loading = true;
+//       _errorText = null;
+//     });
+
+//     try {
+//       final ts = DateTime.now().millisecondsSinceEpoch;
+//       // 1차: 정식 경로
+//       var res = await _api.get('/training/recommendations?ts=$ts');
+
+//       // 404면: 별칭 경로 폴백
+//       if (res.statusCode == 404) {
+//         res = await _api.get('/recommendations?ts=$ts');
+//       }
+
+//       if (res.statusCode != 200) {
+//         setState(() {
+//           _errorText = 'HTTP ${res.statusCode} - ${res.body}';
+//         });
+//         return;
+//       }
+
+//       final json = jsonDecode(res.body) as Map<String, dynamic>;
+//       setState(() {
+//         _expr     = json['expr']?.toString();
+//         _progress = (json['progress'] is num) ? json['progress'] as num : null;
+//       });
+//     } catch (e) {
+//       setState(() {
+//         _errorText = e.toString();
+//       });
+//     } finally {
+//       if (mounted) {
+//         setState(() => _loading = false);
+//       }
+//     }
+//   }
+
+//   String _exprLabel(String? e) {
+//     switch (e) {
+//       case 'neutral': return '무표정 (neutral)';
+//       case 'smile':   return '웃음 (smile)';
+//       case 'angry':   return '화남 (angry)';
+//       case 'sad':     return '슬픔 (sad)';
+//       default:        return e ?? '-';
+//     }
+//   }
+
+//   @override
+//   Widget build(BuildContext context) {
+//     final theme = Theme.of(context);
+
+//     return Scaffold(
+//       appBar: AppBar(
+//         title: const Text('추천 테스트(간소화)'),
+//         actions: [
+//           IconButton(
+//             onPressed: _loading ? null : _fetchRecommendation,
+//             tooltip: '다시 불러오기',
+//             icon: _loading
+//                 ? const SizedBox(
+//                     width: 18, height: 18,
+//                     child: CircularProgressIndicator(strokeWidth: 2),
+//                   )
+//                 : const Icon(Icons.refresh),
+//           ),
+//         ],
+//       ),
+//       body: Center(
+//         child: ConstrainedBox(
+//           constraints: const BoxConstraints(maxWidth: 520),
+//           child: Padding(
+//             padding: const EdgeInsets.all(20),
+//             child: _buildBody(theme),
+//           ),
+//         ),
+//       ),
+//     );
+//   }
+
+//   Widget _buildBody(ThemeData theme) {
+//     if (_loading) {
+//       return const Column(
+//         mainAxisSize: MainAxisSize.min,
+//         children: [
+//           CircularProgressIndicator(),
+//           SizedBox(height: 12),
+//           Text('추천 불러오는 중…'),
+//         ],
+//       );
+//     }
+
+//     if (_errorText != null) {
+//       return Column(
+//         mainAxisSize: MainAxisSize.min,
+//         children: [
+//           Icon(Icons.error_outline, color: theme.colorScheme.error, size: 28),
+//           const SizedBox(height: 8),
+//           Text(
+//             '추천 요청 실패',
+//             style: theme.textTheme.titleMedium?.copyWith(
+//               color: theme.colorScheme.error,
+//               fontWeight: FontWeight.w600,
+//             ),
+//           ),
+//           const SizedBox(height: 6),
+//           Text(
+//             _errorText!,
+//             textAlign: TextAlign.center,
+//             style: theme.textTheme.bodySmall,
+//           ),
+//           const SizedBox(height: 12),
+//           FilledButton.icon(
+//             onPressed: _fetchRecommendation,
+//             icon: const Icon(Icons.refresh),
+//             label: const Text('다시 시도'),
+//           ),
+//         ],
+//       );
+//     }
+
+//     if (_expr == null) {
+//       return Column(
+//         mainAxisSize: MainAxisSize.min,
+//         children: [
+//           const Icon(Icons.info_outline, size: 28),
+//           const SizedBox(height: 8),
+//           const Text('추천 결과가 없습니다.'),
+//           const SizedBox(height: 12),
+//           FilledButton.icon(
+//             onPressed: _fetchRecommendation,
+//             icon: const Icon(Icons.refresh),
+//             label: const Text('다시 불러오기'),
+//           ),
+//         ],
+//       );
+//     }
+
+//     // 정상 결과 표시
+//     return Card(
+//       elevation: 0.5,
+//       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+//       child: Padding(
+//         padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
+//         child: Column(
+//           mainAxisSize: MainAxisSize.min,
+//           crossAxisAlignment: CrossAxisAlignment.start,
+//           children: [
+//             Text('추천 훈련 모드', style: theme.textTheme.titleMedium),
+//             const SizedBox(height: 8),
+//             Row(
+//               children: [
+//                 const Icon(Icons.auto_awesome),
+//                 const SizedBox(width: 8),
+//                 Text(
+//                   _exprLabel(_expr),
+//                   style: theme.textTheme.headlineSmall?.copyWith(
+//                     fontWeight: FontWeight.w700,
+//                   ),
+//                 ),
+//               ],
+//             ),
+//             const SizedBox(height: 8),
+//             Text(
+//               '최근 평균 진척도: '
+//               '${_progress == null ? '-' : _progress!.toStringAsFixed(1)}',
+//               style: theme.textTheme.bodyMedium,
+//             ),
+//             const SizedBox(height: 14),
+//             Row(
+//               children: [
+//                 FilledButton.icon(
+//                   onPressed: _fetchRecommendation,
+//                   icon: const Icon(Icons.refresh),
+//                   label: const Text('다시 불러오기'),
+//                 ),
+//                 const SizedBox(width: 8),
+//                 Text(
+//                   '페이지 진입 시 자동으로 불러옵니다.',
+//                   style: theme.textTheme.bodySmall?.copyWith(color: Colors.black54),
+//                 ),
+//               ],
+//             ),
+//           ],
+//         ),
+//       ),
+//     );
+//   }
+// }
+
+
+
+
+
