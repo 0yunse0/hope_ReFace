@@ -2,11 +2,16 @@
 
 const express = require('express');
 const router = express.Router();
-const requireAuth = require('../middlewares/auth');
-const { saveInitialExpressionScores } = require('../controllers/expressionsController');
 
-router.use(requireAuth);
+const {
+  saveInitialScores,
+  getInitialScores,
+} = require('../controllers/expressionsController');
 
-router.post('/scores', saveInitialExpressionScores);
+// 초기 점수 저장
+router.post('/scores', saveInitialScores);
+
+// 초기 점수 조회(옵션)
+router.get('/scores', getInitialScores);
 
 module.exports = router;

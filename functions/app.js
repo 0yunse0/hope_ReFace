@@ -5,7 +5,7 @@ const cors = require('cors');
 const admin = require('firebase-admin');
 
 const trainingRouter = require('./routes/training');
-const expressionsRouter = require('./routes/expressions'); // ★ 새 라우터
+const expressionsRouter = require('./routes/expressions');
 
 const app = express();
 
@@ -14,6 +14,7 @@ app.use(express.json({ limit: '1mb' }));
 
 app.get('/health', (req, res) => res.json({ ok: true }));
 
+// 인증 미들웨어 (여기에서만 적용)
 const authGuard = async (req, res, next) => {
   try {
     if (process.env.ENABLE_TEST_BYPASS === '1') {
@@ -24,32 +25,24 @@ const authGuard = async (req, res, next) => {
         return next();
       }
     }
-
     const auth = req.headers.authorization || '';
     const m = auth.match(/^Bearer (.+)$/);
     if (!m) {
-      return res.status(401).json({
-        error: 'unauthorized',
-        detail: 'Missing Bearer token',
-      });
+      return res.status(401).json({ error: 'unauthorized', detail: 'Missing Bearer token' });
     }
-
     const decoded = await admin.auth().verifyIdToken(m[1]);
     req.uid = decoded.uid;
     req.user = { uid: decoded.uid, token: decoded };
     next();
   } catch (err) {
-    res.status(401).json({
-      error: 'unauthorized',
-      detail: String(err?.message || err),
-    });
+    res.status(401).json({ error: 'unauthorized', detail: String(err?.message || err) });
   }
 };
 
-// 초기표정 "점수" 저장용 라우터 (POST /expressions/scores)
+// 초기표정 점수 API
 app.use('/expressions', authGuard, expressionsRouter);
 
-// 훈련 API (세션/완료/조회 등)
+// 훈련 API
 app.use('/training', authGuard, trainingRouter);
 
 // 404 & 에러 핸들러

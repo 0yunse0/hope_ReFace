@@ -1,11 +1,7 @@
 const express = require('express');
 const router = express.Router();
-
 const {
-  startSession,
-  finalizeSession,
-  listSessions,
-  getSession,
+  startSession, finalizeSession, listSessions, getSession
 } = require('../controllers/trainingController');
 
 router.post('/sessions', startSession);
