@@ -3,7 +3,6 @@
 const admin = require('firebase-admin');
 const db = admin.firestore();
 
-/* ---------- helpers ---------- */
 
 // Firestore Timestamp → ISO8601 문자열
 function toISODate(ts) {
@@ -32,7 +31,6 @@ function makeDateKey(tz = 'Asia/Seoul') {
   return `${y}-${m}-${d}`;
 }
 
-/* ---------- controllers ---------- */
 
 /** 세션 시작: { expr } */
 async function startSession(req, res) {
@@ -62,7 +60,7 @@ async function startSession(req, res) {
   }
 }
 
-/** 세션 완료: { finalScore, summary? }  (세트 기록 없이도 OK) */
+/** 세션 완료: { finalScore, summary? } */
 async function finalizeSession(req, res) {
   try {
     const uid = req.uid || req.user?.uid;
