@@ -3,25 +3,28 @@
 const admin = require('firebase-admin');
 const db = admin.firestore();
 
-/** ISO8601 문자열 변환 */
+/* ---------- helpers ---------- */
+
+// Firestore Timestamp → ISO8601 문자열
 function toISODate(ts) {
-  if (!ts) return null;
-  if (typeof ts.toDate === 'function') {
-    return ts.toDate().toISOString();
+  try {
+    if (!ts) return null;
+    if (typeof ts.toDate === 'function') return ts.toDate().toISOString();
+    if (ts._seconds != null) {
+      const nanos = ts._nanoseconds ?? ts._nanos ?? 0;
+      return new Date(ts._seconds * 1000 + Math.floor(nanos / 1e6)).toISOString();
+    }
+    const d = new Date(ts);
+    return isNaN(d) ? null : d.toISOString();
+  } catch {
+    return null;
   }
-  if (typeof ts._seconds === 'number') {
-    return new Date(ts._seconds * 1000).toISOString();
-  }
-  return null;
 }
 
-/** 날짜키 (YYYY-MM-DD, Asia/Seoul) */
+// YYYY-MM-DD(KST)
 function makeDateKey(tz = 'Asia/Seoul') {
   const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: tz,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
+    timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit',
   }).formatToParts(new Date());
   const y = parts.find((p) => p.type === 'year')?.value;
   const m = parts.find((p) => p.type === 'month')?.value;
@@ -29,7 +32,9 @@ function makeDateKey(tz = 'Asia/Seoul') {
   return `${y}-${m}-${d}`;
 }
 
-/** 세션 시작 */
+/* ---------- controllers ---------- */
+
+/** 세션 시작: { expr } */
 async function startSession(req, res) {
   try {
     const uid = req.uid || req.user?.uid;
@@ -52,12 +57,12 @@ async function startSession(req, res) {
 
     return res.json({ sid: ref.id, dateKey });
   } catch (e) {
-    console.error(e);
+    console.error('[startSession] error', e);
     return res.status(500).json({ error: 'session start failed' });
   }
 }
 
-/** 세션 완료 */
+/** 세션 완료: { finalScore, summary? }  (세트 기록 없이도 OK) */
 async function finalizeSession(req, res) {
   try {
     const uid = req.uid || req.user?.uid;
@@ -65,7 +70,6 @@ async function finalizeSession(req, res) {
 
     const sid = req.params.sid;
     const { finalScore, summary } = req.body || {};
-
     if (typeof finalScore !== 'number' || Number.isNaN(finalScore)) {
       return res.status(400).json({ error: 'bad_request', detail: 'finalScore must be a number' });
     }
@@ -83,51 +87,58 @@ async function finalizeSession(req, res) {
 
     return res.json({ ok: true, finalScore, dateKey });
   } catch (e) {
-    console.error(e);
+    console.error('[finalizeSession] error', e);
     return res.status(500).json({ error: 'session finalize failed' });
   }
 }
 
-/** 세션 목록 */
+/**
+ * 세션 목록
+ * - 쿼리: ?expr=smile (선택), ?limit=100 (선택; 기본 50, 최대 200)
+ * - 응답: 표준화된 필드(sid, expr, dateKey, finalScore, status, isInitial, startedAt, completedAt)
+ */
 async function listSessions(req, res) {
   try {
     const uid = req.uid || req.user?.uid;
     if (!uid) return res.status(401).json({ error: 'unauthorized' });
 
-    const { expr } = req.query;
+    const expr = (req.query.expr || '').trim();
+    let limit = parseInt(req.query.limit, 10);
+    if (!Number.isFinite(limit) || limit <= 0) limit = 50;
+    if (limit > 200) limit = 200;
 
-    let query = db.collection('users').doc(uid)
-      .collection('trainingSessions')
-      .orderBy('startedAt', 'desc')
-      .limit(50);
+    let q = db.collection('users').doc(uid).collection('trainingSessions');
 
-    if (expr) {
-      query = query.where('expr', '==', expr);
-    }
+    // ① 필터 먼저
+    if (expr) q = q.where('expr', '==', expr);
 
-    const snap = await query.get();
-    return res.json({
-      sessions: snap.docs.map((d) => {
-        const data = d.data();
-        return {
-          sid: d.id,
-          expr: data.expr,
-          dateKey: data.dateKey,
-          status: data.status,
-          finalScore: data.finalScore ?? null,
-          summary: data.summary ?? null,
-          startedAt: toISODate(data.startedAt),
-          completedAt: toISODate(data.completedAt),
-        };
-      }),
+    // ② 정렬/제한
+    q = q.orderBy('startedAt', 'desc').limit(limit);
+
+    const snap = await q.get();
+
+    const sessions = snap.docs.map((d) => {
+      const data = d.data() || {};
+      return {
+        sid: d.id,
+        expr: data.expr ?? null,
+        dateKey: data.dateKey ?? null,
+        status: data.status ?? null,
+        isInitial: !!data.isInitial,
+        finalScore: typeof data.finalScore === 'number' ? data.finalScore : null,
+        summary: data.summary ?? null,
+        startedAt: toISODate(data.startedAt),
+        completedAt: toISODate(data.completedAt),
+      };
     });
+
+    return res.json({ sessions });
   } catch (e) {
-    console.error(e);
+    console.error('[listSessions] error', e);
     return res.status(500).json({ error: 'list sessions failed' });
   }
 }
 
-/** 세션 상세 */
 async function getSession(req, res) {
   try {
     const uid = req.uid || req.user?.uid;
@@ -139,21 +150,22 @@ async function getSession(req, res) {
 
     if (!doc.exists) return res.status(404).json({ error: 'not_found' });
 
-    const data = doc.data();
-    return res.json({
-      session: {
-        sid: doc.id,
-        expr: data.expr,
-        dateKey: data.dateKey,
-        status: data.status,
-        finalScore: data.finalScore ?? null,
-        summary: data.summary ?? null,
-        startedAt: toISODate(data.startedAt),
-        completedAt: toISODate(data.completedAt),
-      },
-    });
+    const data = doc.data() || {};
+    const session = {
+      sid: doc.id,
+      expr: data.expr ?? null,
+      dateKey: data.dateKey ?? null,
+      status: data.status ?? null,
+      isInitial: !!data.isInitial,
+      finalScore: typeof data.finalScore === 'number' ? data.finalScore : null,
+      summary: data.summary ?? null,
+      startedAt: toISODate(data.startedAt),
+      completedAt: toISODate(data.completedAt),
+    };
+
+    return res.json({ session });
   } catch (e) {
-    console.error(e);
+    console.error('[getSession] error', e);
     return res.status(500).json({ error: 'get session failed' });
   }
 }
