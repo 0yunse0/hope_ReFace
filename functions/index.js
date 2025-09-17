@@ -16,7 +16,7 @@ const app = require('./app');
 //    모든 라우팅은 app.js -> routes/* 에서만
 
 exports.api = onRequest(
-  { region: 'us-central1', cors: true, timeoutSeconds: 60, memory: '512MiB' },
+  { region: 'asia-northeast3', cors: true, timeoutSeconds: 60, memory: '512MiB' },
   (req, res) => app(req, res)
 );
 
