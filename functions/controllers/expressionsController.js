@@ -14,43 +14,49 @@ function makeDateKey(tz = 'Asia/Seoul') {
   return `${y}-${m}-${d}`;
 }
 
-/** 초기 표정 '점수' 저장 + 세션에도 1건씩 미러링 */
+// 점수 데이터 정규화
+function normalizeScores(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const allowed = ['neutral', 'smile', 'angry', 'sad'];
+  const clean = {};
+  for (const k of allowed) {
+    const v = raw[k];
+    if (typeof v === 'number' && Number.isFinite(v)) clean[k] = v;
+  }
+  return Object.keys(clean).length ? clean : null;
+}
+
+/** 초기 표정 점수 저장 */
 async function saveInitialScores(req, res) {
   try {
     const uid = req.uid || req.user?.uid;
     if (!uid) return res.status(401).json({ error: 'unauthorized' });
 
-    const scores = req.body?.expressionScores;
-    if (!scores || typeof scores !== 'object') {
+    const scoresIn = normalizeScores(req.body?.expressionScores);
+    if (!scoresIn) {
       return res.status(400).json({ error: 'bad_request', detail: 'expressionScores required' });
-    }
-
-    const allowed = ['neutral', 'smile', 'angry', 'sad'];
-    const clean = {};
-    for (const k of allowed) {
-      const v = scores[k];
-      if (typeof v === 'number' && !Number.isNaN(v)) clean[k] = v;
-    }
-    if (Object.keys(clean).length === 0) {
-      return res.status(400).json({ error: 'bad_request', detail: 'no valid scores' });
     }
 
     const userRef = db.collection('users').doc(uid);
     const dateKey = makeDateKey('Asia/Seoul');
     const batch = db.batch();
 
-    // 1) 초기 점수 문서
+    // 1) 점수 문서
     const scoresRef = userRef.collection('initialExpressions').doc('scores');
     batch.set(
       scoresRef,
-      { ...clean, updatedAt: admin.firestore.FieldValue.serverTimestamp() },
-      { merge: true },
+      {
+        expressionScores: scoresIn,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
     );
 
     // 2) 각 표정별 초기 세션 미러링
-    for (const [expr, sc] of Object.entries(clean)) {
+    for (const [expr, sc] of Object.entries(scoresIn)) {
       const sid = `initial_${expr}`;
       const sessRef = userRef.collection('trainingSessions').doc(sid);
+      const now = admin.firestore.FieldValue.serverTimestamp();
       batch.set(
         sessRef,
         {
@@ -59,22 +65,23 @@ async function saveInitialScores(req, res) {
           status: 'completed',
           isInitial: true,
           dateKey,
-          startedAt: admin.firestore.FieldValue.serverTimestamp(),
-          completedAt: admin.firestore.FieldValue.serverTimestamp(),
+          startedAt: now,
+          completedAt: now,
         },
-        { merge: true },
+        { merge: true }
       );
     }
 
     await batch.commit();
-    return res.json({ ok: true, dateKey });
+
+    return res.json({ ok: true, dateKey, expressionScores: scoresIn });
   } catch (e) {
-    console.error(e);
+    console.error('[saveInitialScores] error', e);
     return res.status(500).json({ error: 'server_error' });
   }
 }
 
-/** 초기 표정 '점수' 조회 */
+/** 초기 표정 점수 조회 */
 async function getInitialScores(req, res) {
   try {
     const uid = req.uid || req.user?.uid;
@@ -85,19 +92,19 @@ async function getInitialScores(req, res) {
       .collection('initialExpressions').doc('scores')
       .get();
 
-    if (!doc.exists) return res.json({ scores: null, updatedAt: null });
+    if (!doc.exists) {
+      return res.json({ expressionScores: null, updatedAt: null });
+    }
 
     const data = doc.data() || {};
     const updatedAtISO = data.updatedAt?.toDate ? data.updatedAt.toDate().toISOString() : null;
 
-    const scores = {};
-    for (const k of ['neutral', 'smile', 'angry', 'sad']) {
-      if (typeof data[k] === 'number') scores[k] = data[k];
-    }
-
-    return res.json({ scores, updatedAt: updatedAtISO });
+    return res.json({
+      expressionScores: data.expressionScores ?? null,
+      updatedAt: updatedAtISO,
+    });
   } catch (e) {
-    console.error(e);
+    console.error('[getInitialScores] error', e);
     return res.status(500).json({ error: 'server_error' });
   }
 }

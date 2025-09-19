@@ -6,37 +6,34 @@ const app = express();
 
 app.use(express.json());
 
-// 요청 경로 관찰용(임시)
+// ====== 요청 로깅 (디버깅용) ======
 app.use((req, _res, next) => {
-  console.log('[REQ]', req.method, req.path);
+  console.log(
+    '[REQ]',
+    req.method,
+    'path=', req.path,
+    'baseUrl=', req.baseUrl,
+    'originalUrl=', req.originalUrl
+  );
   next();
 });
 
-// 헬스체크 엔드포인트(배포 후 바로 확인용)
+// ====== 공개 엔드포인트 (헬스체크/라우트 인스펙터) ======
 app.get(['/healthz', '/api/healthz'], (req, res) => {
   res.json({ ok: true, path: req.path });
 });
 
-// --- 라우트 마운트 ---
-const expressionsRouter = require('./routes/expressions');
-
-// 둘 다 받기: /expressions/* 와 /api/expressions/*
-// (Hosting에서 /api/* 로 들어와도 매칭되도록)
-app.use(['/expressions', '/api/expressions'], expressionsRouter);
-
-
 app.get(['/__routes', '/api/__routes'], (req, res) => {
   const routes = [];
-  app._router.stack.forEach((middleware) => {
-    if (middleware.route) { // 직접 라우트
-      const methods = Object.keys(middleware.route.methods).map((m) => m.toUpperCase());
-      routes.push({ path: middleware.route.path, methods });
-    } else if (middleware.name === 'router') { // 서브 라우터
-      middleware.handle.stack.forEach((r) => {
-        const route = r.route;
-        if (route) {
-          const methods = Object.keys(route.methods).map((m) => m.toUpperCase());
-          routes.push({ path: route.path, methods });
+  app._router.stack.forEach((m) => {
+    if (m.route) {
+      const methods = Object.keys(m.route.methods).map((x) => x.toUpperCase());
+      routes.push({ path: m.route.path, methods });
+    } else if (m.name === 'router') {
+      m.handle.stack.forEach((r) => {
+        if (r.route) {
+          const methods = Object.keys(r.route.methods).map((x) => x.toUpperCase());
+          routes.push({ path: r.route.path, methods });
         }
       });
     }
@@ -44,10 +41,19 @@ app.get(['/__routes', '/api/__routes'], (req, res) => {
   res.json(routes);
 });
 
+// ====== 라우터 & 인증 미들웨어 ======
+const requireAuth = require('./middlewares/auth');
+const expressionsRouter = require('./routes/expressions');
 
-// 404 핸들러(무엇이 안 맞는지 확인)
+// ✅ /expressions 와 /api/expressions 모두 인증 후 라우팅
+app.use(['/expressions','/api/expressions'], requireAuth, expressionsRouter);
+
+const trainingRouter = require('./routes/training');
+app.use(['/training', '/api/training'], requireAuth, trainingRouter);
+
+// ====== 404 핸들러 ======
 app.use((req, res) => {
-  console.warn('[404]', req.method, req.path);
+  console.warn('[404]', req.method, req.path, 'originalUrl=', req.originalUrl);
   res.status(404).json({ error: 'not_found', path: req.path });
 });
 
