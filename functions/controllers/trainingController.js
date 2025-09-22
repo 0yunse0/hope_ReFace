@@ -173,60 +173,49 @@ async function getRecommendations(req, res) {
     const uid = req.uid || req.user?.uid;
     if (!uid) return res.status(401).json({ error: 'unauthorized' });
 
+    // 평가할 표정 목록
     const exprs = ['neutral', 'smile', 'angry', 'sad'];
-    const limitN = 50; // 최근 N개 샘플 평균
-    const minSamples = 2; // 최소 표본 수(선택) — 2~3 권장
 
-    // 표정별 쿼리를 병렬 실행
-    const promises = exprs.map(async (expr) => {
-      try {
-        const snap = await db
-          .collection('users').doc(uid)
-          .collection('trainingSessions')
-          .where('expr', '==', expr)
-          .where('status', '==', 'completed')
-          .orderBy('completedAt', 'desc')
-          .limit(limitN)
-          .get();
+    // 각 표정의 최근 완료 세션(finalScore) 평균을 구함
+    // 평균이 있는(=세션이 1개 이상) 표정들만 후보로 삼는다
+    const scored = []; // [{ expr, avg }]
+    for (const expr of exprs) {
+      const snap = await db
+        .collection('users').doc(uid)
+        .collection('trainingSessions')
+        .where('expr', '==', expr)
+        .where('status', '==', 'completed')
+        .orderBy('completedAt', 'desc')
+        .limit(50)
+        .get();
 
-        if (snap.empty) return null;
+      if (snap.empty) continue; // 데이터 없으면 제외
 
-        let sum = 0;
-        let cnt = 0;
-        snap.forEach((doc) => {
-          const d = doc.data();
-          const sc = (typeof d.finalScore === 'number') ? d.finalScore : null;
-          if (sc != null) {
-            sum += sc; cnt += 1;
-          }
-        });
-
-        if (cnt === 0) return null;
-        const avg = +(sum / cnt).toFixed(2);
-
-        // 표본 수가 너무 적으면 후보에서 제외(선택)
-        if (cnt < minSamples) return null;
-
-        return { expr, avg, cnt };
-      } catch (e) {
-        // 부분 실패는 무시하고 다른 표정 결과로 계속 진행
-        console.warn(`[getRecommendations] query failed for expr=${expr}`, e);
-        return null;
+      let sum = 0;
+      let cnt = 0;
+      snap.forEach((doc) => {
+        const d = doc.data();
+        const sc = (typeof d.finalScore === 'number') ? d.finalScore : null;
+        if (sc != null) {
+          sum += sc; cnt += 1;
+        }
+      });
+      if (cnt > 0) {
+        const avg = +(sum / cnt).toFixed(2); // 소수 2자리
+        scored.push({ expr, avg });
       }
-    });
+    }
 
-    const results = await Promise.all(promises);
-    const scored = results.filter(Boolean); // null 제거
-
+    // 세션 데이터가 전혀 없다면 기본 추천(예: neutral, progress=null)
     if (scored.length === 0) {
-      // 전혀 데이터가 없거나, 표본수 미달로 모두 제외된 경우
       return res.json({ expr: 'neutral', progress: null });
     }
 
-    // 평균이 가장 낮은 표정(진척도 낮음) 추천
+    // 평균 점수가 가장 낮은(진척도가 낮은) 표정을 추천
     scored.sort((a, b) => a.avg - b.avg);
     const { expr, avg } = scored[0];
 
+    // 응답을 간단히: 표정 + 진척도만
     return res.json({ expr, progress: avg });
   } catch (err) {
     console.error('getRecommendations error', err);
