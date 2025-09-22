@@ -46,7 +46,7 @@ const requireAuth = require('./middlewares/auth');
 const expressionsRouter = require('./routes/expressions');
 
 // ✅ /expressions 와 /api/expressions 모두 인증 후 라우팅
-app.use(['/expressions','/api/expressions'], requireAuth, expressionsRouter);
+app.use(['/expressions', '/api/expressions'], requireAuth, expressionsRouter);
 
 const trainingRouter = require('./routes/training');
 app.use(['/training', '/api/training'], requireAuth, trainingRouter);
