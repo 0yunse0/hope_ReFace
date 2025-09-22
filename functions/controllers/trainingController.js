@@ -175,63 +175,47 @@ async function getRecommendations(req, res) {
 
     const exprs = ['neutral', 'smile', 'angry', 'sad'];
 
-    // 각 표정에 대해 "최근 3개 completed 세션" 조회
+    // 각 표정에 대해 "가장 최근 completed 1개"만 조회 (병렬)
     const queries = exprs.map((expr) =>
       db.collection('users').doc(uid)
         .collection('trainingSessions')
         .where('expr', '==', expr)
         .where('status', '==', 'completed')
         .orderBy('completedAt', 'desc')
-        .limit(3)
+        .limit(1)
         .get()
         .then((snap) => {
           if (snap.empty) return null;
+          const d = snap.docs[0].data();
 
-          let sum = 0;
-          let cnt = 0;
-          let lastCompletedAt = null;
+          const score = (typeof d.finalScore === 'number') ? d.finalScore : null;
+          const completedAt =
+            d.completedAt?.toDate?.() ??
+            (d.completedAt ? new Date(d.completedAt) : null);
 
-          snap.forEach((doc) => {
-            const d = doc.data();
-            const sc = (typeof d.finalScore === 'number') ? d.finalScore : null;
-            if (sc != null) {
-              sum += sc;
-              cnt++;
-            }
-            const ts =
-              d.completedAt?.toDate?.() ??
-              (d.completedAt ? new Date(d.completedAt) : null);
-            if (!lastCompletedAt || (ts && ts > lastCompletedAt)) {
-              lastCompletedAt = ts;
-            }
-          });
-
-          if (cnt === 0) return null;
-          const avg = +(sum / cnt).toFixed(2);
-
-          return { expr, avg, lastCompletedAt };
+          if (score == null) return null; // 점수 없는 경우 후보 제외
+          return { expr, score: +score, lastCompletedAt: completedAt };
         })
         .catch(() => null)
     );
 
-    const results = (await Promise.all(queries)).filter((r) => r);
+    const results = (await Promise.all(queries)).filter(Boolean);
 
-    // 점수가 전혀 없으면 기본 추천
+    // 최근 점수가 하나도 없으면 기본값
     if (results.length === 0) {
       return res.json({ expr: 'neutral', progress: null });
     }
 
-    // 평균 점수가 가장 낮은 표정 선택
-    results.sort((a, b) => a.avg - b.avg);
+    // 점수가 가장 낮은(=진척도 낮은) 최근 표정 추천
+    results.sort((a, b) => a.score - b.score);
     const best = results[0];
 
     return res.json({
       expr: best.expr,
-      progress: best.avg,
-      lastCompletedAt: best.lastCompletedAt ?
-        best.lastCompletedAt.toISOString() :
-        null,
-      reason: '각 표정의 최근 3개 세션 평균 점수 중 최저',
+      progress: +best.score.toFixed(2),
+      lastCompletedAt: best.lastCompletedAt ? best.lastCompletedAt.toISOString() : null,
+      reason: '표정별 가장 최근 1개 세션 점수 중 최저',
+      // candidates: results.map(r => ({ expr: r.expr, score: r.score })) // 디버그용
     });
   } catch (err) {
     console.error('getRecommendations error', err);
