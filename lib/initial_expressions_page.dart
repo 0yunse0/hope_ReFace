@@ -41,6 +41,12 @@ class _InitialExpressionsPageState extends State<InitialExpressionsPage>
     super.dispose();
   }
 
+  // TODO: 점수 계산 로직을 네 실제 알고리즘으로 교체
+  num _calculateScore(Map<String, dynamic> landmarks) {
+    // 예시: 키 개수를 점수로(임시). 실제 계산식으로 바꿔라!
+    return landmarks.length;
+  }
+
   Future<void> _submit() async {
     setState(() {
       _loading = true;
@@ -54,13 +60,21 @@ class _InitialExpressionsPageState extends State<InitialExpressionsPage>
       }
       final idToken = await user.getIdToken();
 
+      // 🔸 점수만 보내는 payload (좌표 전송 X)
       final payload = {
-        "expressions": {
-          for (final entry in _forms.entries) entry.key: entry.value.toJson(),
+        'expressionScores': {
+          for (final entry in _forms.entries)
+            entry.key: _calculateScore(entry.value.toJson()),
         }
       };
 
-       final url = Uri.parse('${Env.baseUrl}/expressions/initial');
+      final url = Uri.parse('${Env.baseUrl}/expressions/initial');
+      // 디버그: 최종 요청 확인
+      // (모바일이면 Env.baseUrl이 반드시 https://asia-northeast3-<PROJECT>.cloudfunctions.net/api 여야 함)
+      // 웹(Hosting)이라면 https://<project>.web.app/api 로도 OK
+      debugPrint('[API] POST $url');
+      debugPrint('[API] body = ${jsonEncode(payload)}');
+
       final resp = await http.post(
         url,
         headers: {
@@ -84,7 +98,6 @@ class _InitialExpressionsPageState extends State<InitialExpressionsPage>
             MaterialPageRoute(builder: (_) => const HomePage()),
             (_) => false,
           );
-          return;
         } else {
           setState(() => _result = '실패: 서버 응답에 ok=false');
         }
@@ -95,9 +108,7 @@ class _InitialExpressionsPageState extends State<InitialExpressionsPage>
       if (!mounted) return;
       setState(() => _result = '에러: $e');
     } finally {
-      if (mounted) {
-        setState(() => _loading = false);
-      }
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -161,7 +172,7 @@ class _ExpressionFormState {
       x[k] = TextEditingController();
       y[k] = TextEditingController();
     }
-    // 예시 기본값
+    // 예시 기본값(원하면 삭제 가능)
     x['bottomMouth']!.text = '209'; y['bottomMouth']!.text = '518';
     x['rightMouth']!.text  = '248'; y['rightMouth']!.text  = '508';
     x['leftMouth']!.text   = '182'; y['leftMouth']!.text   = '507';

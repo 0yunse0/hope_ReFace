@@ -173,55 +173,72 @@ async function getRecommendations(req, res) {
     const uid = req.uid || req.user?.uid;
     if (!uid) return res.status(401).json({ error: 'unauthorized' });
 
-    // 평가할 표정 목록
     const exprs = ['neutral', 'smile', 'angry', 'sad'];
 
-    // 각 표정의 최근 완료 세션(finalScore) 평균을 구함
-    // 평균이 있는(=세션이 1개 이상) 표정들만 후보로 삼는다
-    const scored = []; // [{ expr, avg }]
-    for (const expr of exprs) {
-      const snap = await db
-        .collection('users').doc(uid)
+    // 각 표정에 대해 "최근 3개 completed 세션" 조회
+    const queries = exprs.map((expr) =>
+      db.collection('users').doc(uid)
         .collection('trainingSessions')
         .where('expr', '==', expr)
         .where('status', '==', 'completed')
         .orderBy('completedAt', 'desc')
-        .limit(50)
-        .get();
+        .limit(3)
+        .get()
+        .then((snap) => {
+          if (snap.empty) return null;
 
-      if (snap.empty) continue; // 데이터 없으면 제외
+          let sum = 0;
+          let cnt = 0;
+          let lastCompletedAt = null;
 
-      let sum = 0;
-      let cnt = 0;
-      snap.forEach((doc) => {
-        const d = doc.data();
-        const sc = (typeof d.finalScore === 'number') ? d.finalScore : null;
-        if (sc != null) {
-          sum += sc; cnt += 1;
-        }
-      });
-      if (cnt > 0) {
-        const avg = +(sum / cnt).toFixed(2); // 소수 2자리
-        scored.push({ expr, avg });
-      }
-    }
+          snap.forEach((doc) => {
+            const d = doc.data();
+            const sc = (typeof d.finalScore === 'number') ? d.finalScore : null;
+            if (sc != null) {
+              sum += sc;
+              cnt++;
+            }
+            const ts =
+              d.completedAt?.toDate?.() ??
+              (d.completedAt ? new Date(d.completedAt) : null);
+            if (!lastCompletedAt || (ts && ts > lastCompletedAt)) {
+              lastCompletedAt = ts;
+            }
+          });
 
-    // 세션 데이터가 전혀 없다면 기본 추천(예: neutral, progress=null)
-    if (scored.length === 0) {
+          if (cnt === 0) return null;
+          const avg = +(sum / cnt).toFixed(2);
+
+          return { expr, avg, lastCompletedAt };
+        })
+        .catch(() => null)
+    );
+
+    const results = (await Promise.all(queries)).filter((r) => r);
+
+    // 점수가 전혀 없으면 기본 추천
+    if (results.length === 0) {
       return res.json({ expr: 'neutral', progress: null });
     }
 
-    // 평균 점수가 가장 낮은(진척도가 낮은) 표정을 추천
-    scored.sort((a, b) => a.avg - b.avg);
-    const { expr, avg } = scored[0];
+    // 평균 점수가 가장 낮은 표정 선택
+    results.sort((a, b) => a.avg - b.avg);
+    const best = results[0];
 
-    // 응답을 간단히: 표정 + 진척도만
-    return res.json({ expr, progress: avg });
+    return res.json({
+      expr: best.expr,
+      progress: best.avg,
+      lastCompletedAt: best.lastCompletedAt ?
+        best.lastCompletedAt.toISOString() :
+        null,
+      reason: '각 표정의 최근 3개 세션 평균 점수 중 최저',
+    });
   } catch (err) {
     console.error('getRecommendations error', err);
     return res.status(500).json({ error: 'server_error' });
   }
 }
+
 
 module.exports = {
   startSession,
